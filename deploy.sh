@@ -97,6 +97,13 @@ After=network.target
 
 [Service]
 User=$USER
+EOF
+if [[ -n "$CF_TOKEN" ]]; then
+  tee -a /etc/systemd/system/caddy.service >/dev/null <<EOF
+Environment=CLOUDFLARE_API_TOKEN=$CF_TOKEN
+EOF
+fi
+tee -a /etc/systemd/system/caddy.service >/dev/null <<EOF
 ExecStart=$APP_DIR/bin/caddy run --environ --config /etc/caddy/Caddyfile
 Restart=always
 
@@ -162,6 +169,10 @@ if [[ -n "$CF_TOKEN" ]]; then
     }
     reverse_proxy 127.0.0.1:5000
 }
+
+http://*.${DOMAIN} {
+    reverse_proxy 127.0.0.1:5000
+}
 EOF
 else
   # Normal HTTPS with wildcard domain
@@ -174,10 +185,18 @@ else
 *.${DOMAIN} {
     reverse_proxy 127.0.0.1:5000
 }
+
+http://*.${DOMAIN} {
+    reverse_proxy 127.0.0.1:5000
+}
 EOF
   else
     tee /etc/caddy/Caddyfile >/dev/null <<EOF
 *.${DOMAIN} {
+    reverse_proxy 127.0.0.1:5000
+}
+
+http://*.${DOMAIN} {
     reverse_proxy 127.0.0.1:5000
 }
 EOF
