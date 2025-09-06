@@ -1,0 +1,26 @@
+name: CI Docker Build and test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: docker build -t ipinfo:test .
+
+      - name: Run container and test
+        run: |
+          docker run -d -p 8000:8000 --name ipinfo ipinfo:test
+          sleep 5
+          curl -f http://localhost:8000/json | grep '"IPv4"' 
+          docker stop ipinfo
