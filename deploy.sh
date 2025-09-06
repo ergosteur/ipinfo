@@ -3,59 +3,60 @@
 
 set -euo pipefail
 
+if [[ $EUID -ne 0 ]]; then
+  echo "This script must be run as root. Please run with sudo or as root user."
+  exit 1
+fi
+
 APP_DIR="/srv/ipinfo"
 PYTHON_BIN="python3"
 DOMAIN=""
 EMAIL=""
-UPDATE_MODE=0
 CF_TOKEN=""
 CF_ZONE=""
+UPDATE_MODE=0
 
-# Parse command-line arguments
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --domain)
-      shift
-      if [[ $# -eq 0 ]]; then
-        echo "Error: --domain requires an argument"
-        exit 1
-      fi
-      DOMAIN="$1"
-      shift
+usage() {
+  echo "Usage: $0 [-d domain] [-e email] [-t cf_token] [-z cf_zone] [-u] [-h]"
+  echo ""
+  echo "Options:"
+  echo "  -d DOMAIN      Set the domain name (default: ip.example.com or BASE_DOMAIN env)"
+  echo "  -e EMAIL       Set the email for TLS certificates"
+  echo "  -t CF_TOKEN    Cloudflare API token for DNS challenge and DNS record management"
+  echo "  -z CF_ZONE     Cloudflare zone ID for DNS record management"
+  echo "  -u             Update mode (skip installation and venv creation)"
+  echo "  -h             Show this help message and exit"
+}
+
+while getopts ":d:e:t:z:uh" opt; do
+  case $opt in
+    d)
+      DOMAIN="$OPTARG"
       ;;
-    --email)
-      shift
-      if [[ $# -eq 0 ]]; then
-        echo "Error: --email requires an argument"
-        exit 1
-      fi
-      EMAIL="$1"
-      shift
+    e)
+      EMAIL="$OPTARG"
       ;;
-    --update)
+    t)
+      CF_TOKEN="$OPTARG"
+      ;;
+    z)
+      CF_ZONE="$OPTARG"
+      ;;
+    u)
       UPDATE_MODE=1
-      shift
       ;;
-    --cf-token)
-      shift
-      if [[ $# -eq 0 ]]; then
-        echo "Error: --cf-token requires an argument"
-        exit 1
-      fi
-      CF_TOKEN="$1"
-      shift
+    h)
+      usage
+      exit 0
       ;;
-    --cf-zone)
-      shift
-      if [[ $# -eq 0 ]]; then
-        echo "Error: --cf-zone requires an argument"
-        exit 1
-      fi
-      CF_ZONE="$1"
-      shift
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      usage
+      exit 1
       ;;
-    *)
-      echo "Unknown option: $1"
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      usage
       exit 1
       ;;
   esac
@@ -68,23 +69,22 @@ fi
 
 if [[ $UPDATE_MODE -eq 0 ]]; then
   # --- install dependencies ---
-  sudo apt update
-  sudo apt install -y python3 python3-venv python3-pip git curl debian-keyring debian-archive-keyring apt-transport-https jq
+  apt update
+  apt install -y python3 python3-venv python3-pip git curl debian-keyring debian-archive-keyring apt-transport-https jq
 
   # --- install Caddy (official repo) ---
   if ! command -v caddy &>/dev/null; then
     echo "Installing Caddy..."
-    sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
-    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo tee /etc/apt/trusted.gpg.d/caddy-stable.asc
-    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
-    sudo apt update
-    sudo apt install -y caddy
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/caddy-stable-archive-keyring.gpg] https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/caddy-stable.list
+    apt update
+    apt install -y caddy
   fi
 fi
 
 # --- setup app directory ---
-sudo mkdir -p "$APP_DIR"
-sudo chown "$USER":"$USER" "$APP_DIR"
+mkdir -p "$APP_DIR"
+chown "$USER":"$USER" "$APP_DIR"
 
 if [ ! -d "$APP_DIR/.git" ]; then
   git clone https://github.com/ergosteur/ipinfo.git "$APP_DIR"
@@ -101,7 +101,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 # --- systemd service ---
-sudo tee /etc/systemd/system/ipinfo.service >/dev/null <<EOF
+tee /etc/systemd/system/ipinfo.service >/dev/null <<EOF
 [Unit]
 Description=ipinfo Flask app
 After=network.target
@@ -117,13 +117,13 @@ Restart=always
 WantedBy=multi-user.target
 EOF
 
-sudo systemctl daemon-reload
-sudo systemctl enable --now ipinfo.service
+systemctl daemon-reload
+systemctl enable --now ipinfo.service
 
 # --- caddy config ---
 if [[ -n "$CF_TOKEN" ]]; then
   # Configure Caddy with Cloudflare DNS challenge and wildcard domain
-  sudo tee /etc/caddy/Caddyfile >/dev/null <<EOF
+  tee /etc/caddy/Caddyfile >/dev/null <<EOF
 {
     email $EMAIL
     acme_dns cloudflare
@@ -139,7 +139,7 @@ EOF
 else
   # Normal HTTPS with wildcard domain
   if [[ -n "$EMAIL" ]]; then
-    sudo tee /etc/caddy/Caddyfile >/dev/null <<EOF
+    tee /etc/caddy/Caddyfile >/dev/null <<EOF
 {
     email $EMAIL
 }
@@ -149,7 +149,7 @@ else
 }
 EOF
   else
-    sudo tee /etc/caddy/Caddyfile >/dev/null <<EOF
+    tee /etc/caddy/Caddyfile >/dev/null <<EOF
 *.${DOMAIN} {
     reverse_proxy 127.0.0.1:5000
 }
@@ -157,7 +157,7 @@ EOF
   fi
 fi
 
-sudo systemctl reload caddy
+systemctl reload caddy
 
 # --- Cloudflare DNS records setup ---
 DNS_UPDATED=0
