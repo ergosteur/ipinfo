@@ -76,7 +76,12 @@ if [[ $UPDATE_MODE -eq 0 ]]; then
   if ! command -v caddy &>/dev/null; then
     echo "Installing Caddy..."
     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-    echo "deb [signed-by=/usr/share/keyrings/caddy-stable-archive-keyring.gpg] https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/caddy-stable.list
+    # Determine distro codename
+    DISTRO=$(grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2)
+    if [[ -z "$DISTRO" ]]; then
+      DISTRO="bookworm"
+    fi
+    echo "deb [signed-by=/usr/share/keyrings/caddy-stable-archive-keyring.gpg] https://dl.cloudsmith.io/public/caddy/stable/deb/debian $DISTRO main" > /etc/apt/sources.list.d/caddy-stable.list
     apt update
     apt install -y caddy
   fi
