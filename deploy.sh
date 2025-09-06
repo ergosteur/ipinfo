@@ -74,7 +74,7 @@ if [[ $UPDATE_MODE -eq 0 ]]; then
 
   # --- install Go if missing or too old ---
   install_go() {
-    local required_version="1.22"
+    local required_version="1.25"
     local go_version=""
     if command -v go &>/dev/null; then
       go_version=$(go version | awk '{print $3}' | sed 's/go//')
@@ -86,11 +86,11 @@ if [[ $UPDATE_MODE -eq 0 ]]; then
     }
 
     if [[ -z "$go_version" ]] || ! version_ge "$go_version" "$required_version"; then
-      echo "Installing Go $required_version or newer..."
+      echo "Installing Go 1.25 or newer..."
 
       GO_ARCH="amd64"
       GO_OS="linux"
-      GO_VERSION="1.22.10"
+      GO_VERSION="1.25.1"
 
       # Clean previous Go installation if exists
       if [ -d /usr/local/go ]; then
@@ -200,13 +200,15 @@ EOF
 systemctl daemon-reload
 systemctl enable --now ipinfo.service
 
+# Ensure /etc/caddy directory exists before writing Caddyfile
+mkdir -p /etc/caddy
+
 # --- caddy config ---
 if [[ -n "$CF_TOKEN" ]]; then
   # Configure Caddy with Cloudflare DNS challenge and wildcard domain
   tee /etc/caddy/Caddyfile >/dev/null <<EOF
 {
     email $EMAIL
-    acme_dns cloudflare
 }
 
 *.${DOMAIN} {
