@@ -72,18 +72,40 @@ if [[ $UPDATE_MODE -eq 0 ]]; then
   apt update
   apt install -y python3 python3-venv python3-pip git curl debian-keyring debian-archive-keyring apt-transport-https jq
 
-  # --- install Caddy (official repo) ---
+  # --- install Caddy (with Cloudflare DNS support) ---
   if ! command -v caddy &>/dev/null; then
-    echo "Installing Caddy..."
-    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-    # Determine distro codename
-    DISTRO=$(grep '^VERSION_CODENAME=' /etc/os-release | cut -d= -f2)
-    if [[ -z "$DISTRO" ]]; then
-      DISTRO="bookworm"
-    fi
-    echo "deb [signed-by=/usr/share/keyrings/caddy-stable-archive-keyring.gpg] https://dl.cloudsmith.io/public/caddy/stable/deb/debian $DISTRO main" > /etc/apt/sources.list.d/caddy-stable.list
-    apt update
-    apt install -y caddy
+    echo "Installing Go and xcaddy..."
+    apt install -y golang git
+
+    # Install xcaddy
+    go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
+    export PATH=$PATH:/root/go/bin
+
+    echo "Building custom Caddy with Cloudflare DNS module..."
+    mkdir -p "$APP_DIR/bin"
+    xcaddy build \
+      --with github.com/caddy-dns/cloudflare
+
+    # Install Caddy binary
+    mv caddy "$APP_DIR/bin/caddy"
+
+    # Create systemd service for Caddy
+    tee /etc/systemd/system/caddy.service >/dev/null <<EOF
+[Unit]
+Description=Caddy web server
+After=network.target
+
+[Service]
+User=$USER
+ExecStart=$APP_DIR/bin/caddy run --environ --config /etc/caddy/Caddyfile
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    systemctl daemon-reload
+    systemctl enable --now caddy.service
   fi
 fi
 
@@ -162,7 +184,9 @@ EOF
   fi
 fi
 
-systemctl reload caddy
+if [[ $UPDATE_MODE -ne 0 ]]; then
+  systemctl restart caddy.service
+fi
 
 # --- Cloudflare DNS records setup ---
 DNS_UPDATED=0
