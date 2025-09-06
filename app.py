@@ -1,0 +1,154 @@
+from flask import Flask, request, jsonify, render_template, make_response, send_from_directory
+from flask_cors import CORS
+import socket, os
+import csv
+from io import StringIO
+
+app = Flask(__name__)
+#CORS(app, resources={r"/*": {"origins": "https://*.1qaz.ca"}})  # Allow all subdomains of 1qaz.ca - for requesting ip json from other subdomain
+CORS(app, resources={r"/*": {"origins": ["https://ip.1qaz.ca", "https://ip4.1qaz.ca", "https://ip6.1qaz.ca"]}})
+def get_ip_info(request):
+    ipv4 = None
+    ipv6 = None
+
+    x_forwarded_for = request.headers.get('X-Forwarded-For')
+    if x_forwarded_for:
+        ips = [ip.strip() for ip in x_forwarded_for.split(',')]
+        for ip in ips:
+            try:
+                socket.inet_pton(socket.AF_INET, ip)
+                ipv4 = ip
+            except socket.error:
+                try:
+                    socket.inet_pton(socket.AF_INET6, ip)
+                    ipv6 = ip
+                except socket.error:
+                    pass
+    else:
+        try:
+            socket.inet_pton(socket.AF_INET, request.remote_addr)
+            ipv4 = request.remote_addr
+        except socket.error:
+            try:
+                socket.inet_pton(socket.AF_INET6, request.remote_addr)
+                ipv6 = request.remote_addr
+            except socket.error:
+                pass
+
+    hostname_ipv4 = "None"
+    hostname_ipv6 = "None"
+
+    if ipv4:
+        try:
+            hostname_ipv4 = socket.getfqdn(ipv4)
+        except socket.gaierror:
+            hostname_ipv4 = "Hostname not found"
+
+    if ipv6:
+        try:
+            hostname_ipv6 = socket.getfqdn(ipv6)
+        except socket.gaierror:
+            hostname_ipv6 = "Hostname not found"
+
+    user_agent = request.headers.get('User-Agent')
+    language = request.headers.get('Accept-Language')
+    encodings = request.headers.get('Accept-Encoding')
+    host = request.headers.get('Host')
+    cf_connecting_ip = request.headers.get('CF-Connecting-IP')  # Get the CF-Connecting-IP header
+
+    info = {
+        'IPv4': ipv4,
+        'HOSTNAME_IPv4': hostname_ipv4,
+        'IPv6': ipv6,
+        'HOSTNAME_IPv6': hostname_ipv6,
+        'USER_AGENT': user_agent,
+        'LANGUAGE': language,
+        'ENCODINGS': encodings,
+        'X-Forwarded-For': x_forwarded_for,
+        'HOST': host,
+    }
+
+    if cf_connecting_ip:  # Add the header to the info dictionary if present
+        info['CF_CONNECTING_IP'] = cf_connecting_ip
+
+    return info
+
+@app.route('/')
+def html_info():
+    info = get_ip_info(request)
+    return render_template('info.html', info=info)
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+@app.route('/json')
+def json_info():
+    info = get_ip_info(request)
+    return jsonify(info)
+
+@app.route('/txt')
+def text_info():
+    info = get_ip_info(request)
+    text = "\n".join([f"{key}: {value}" for key, value in info.items()])
+    return make_response(text, {'Content-Type': 'text/plain'})
+
+@app.route('/iponly')
+def iponly_info():
+    info = get_ip_info(request)
+    text = info.get('IPv4') or info.get('IPv6')
+    return make_response(text, {'Content-Type': 'text/plain'})
+
+@app.route('/csv')
+def csv_info():
+    info = get_ip_info(request)
+    si = StringIO()
+    cw = csv.writer(si)
+    cw.writerow(["Key", "Value"])  # Add header row
+    for key, value in info.items():
+        cw.writerow([key, value])
+    #cw.writerow(info.keys())
+    #cw.wrierow(info.values())
+    output = si.getvalue()
+    return make_response(output, {'Content-Type': 'text/plain'})
+
+# pfSense Dynamic DNS CheckIP
+@app.route('/pfsense')
+def pfsense_ip_check():
+    info = get_ip_info(request)
+    client_ip = info.get('IPv4') or info.get('IPv6')  # Get IPv4 or IPv6
+
+    if client_ip:
+        html_response = f"""
+        <html>
+        <head><title>Current IP Check</title></head>
+        <body>Current IP Address: {client_ip}</body>
+        </html>
+        """
+        return html_response
+    else:
+        return "Could not determine client IP", 500
+
+
+# fun themes
+@app.route('/98')
+def windows98_info():
+    info = get_ip_info(request)
+    return render_template('98/index.html', info=info)
+
+if __name__ == '__main__':
+    # Not used with Gunicorn
+    pass
+
+# SEO static
+# Route for robots.txt
+@app.route('/robots.txt')
+def serve_robots_txt():
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'robots.txt', mimetype='text/plain')
+
+# Route for sitemap.xml
+@app.route('/sitemap.xml')
+def serve_sitemap_xml():
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'sitemap.xml', mimetype='application/xml')
+

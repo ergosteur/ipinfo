@@ -1,0 +1,86 @@
+/*! additional customization for 98.css !*/
+body {
+    background-color: #008080;
+	font-smooth: never;
+	-webkit-font-smoothing: none;
+	font-optical-sizing: none;
+}
+#winipcfg-window {
+	position: absolute; /* To enable dragging */
+    transition: transform 0.2s ease-out, opacity 0.2s ease-out; /* Add transitions */
+}
+#winipcfg-window.minimized {
+    transform: scale(0.1); /* Scale down */
+    opacity: 0; /* Fade out */
+}
+#winipcfg-icon {
+	transition: transform 0.2s ease-out, opacity 0.2s ease-out; /* Add transitions */
+    cursor: pointer;
+    text-align: center;
+}
+#winipcfg-icon.restored {
+    transform: scale(1); /* Scale back up */
+    opacity: 1; /* Fade back in */
+}
+#winipcfg-icon.selected {
+    background-color: rgba(0, 0, 139, 0.5); /* Dark blue with 50% opacity */
+}
+#winipcfg-icon-label {
+    display: block;
+    font-family: "Pixelated MS Sans Serif", Arial;
+    font-size: 11px;
+	color: #ffffff;
+}
+
+div .window {
+    width: 360px;
+    margin: 20px auto;
+	transform-origin: top left; /* Important for scaling from the top-left for zoom function */
+    }
+.title-bar-text img {
+	vertical-align: text-top;
+	padding: 0 !important;
+	margin-top: -2px;
+    margin-bottom: -1px;
+}
+.grid-container {
+	display: grid;
+	grid-template-columns: auto auto;
+	text-rendering: geometricPrecision;
+	font-smooth: never;
+	-webkit-font-smoothing: none;
+}
+.grid-container label {
+	display: block;
+	text-align: right;
+	align-content: center;
+	padding-right: 5px;
+}
+.grid-container p {
+	margin: 0;
+}
+.ipinfo label {
+	width: 95%;
+	
+}
+.headerinfo label {
+	width: 95%;
+}
+div .bottom-buttons {
+	text-align: right;
+	padding-top: 5px;
+}
+div .radio-buttons {
+	text-align: center;
+}
+input[type="radio"] + label {
+	padding-right: 2px;
+}
+#clock {
+	text-align: right;
+	padding-left: 5px;
+	width: 30px;
+}
+fieldset {
+	margin-top: 7px;
+}

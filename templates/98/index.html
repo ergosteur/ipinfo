@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IP Information - Windows 98 Style - Find my IP</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/98.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/98plus.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="apple-touch-icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/winipcfg.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/winipcfg.png') }}">
+    <link rel="canonical" href="https://ip.1qaz.ca/">
+    <meta name="description" content="Displays your public IP address, location, and network details, presented with a Windows 98 retro theme.">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <div id="winipcfg-window" class="window" style="width: 360px; margin: 20px auto;">
+        <div class="title-bar">
+            <div class="title-bar-text"><img alt="winipcfg icon" src="{{ url_for('static', filename='img/winipcfg-icon.png') }}" height="16" width="16" /> Windows IP Configuration</div>
+            <div class="title-bar-controls">
+				<button aria-label="Minimize" id="minimize-button"></button>
+				<button aria-label="Maximize" id="maximize-button"></button>
+                <button aria-label="Close" id="close-button"></button>
+            </div>
+        </div>
+        <div class="window-body">
+            <fieldset class="ipinfo">
+                <legend>Internet Protocol Information</legend>
+                <div class="grid-container">
+                    <label for="ipv4-address">IPv4 Address:</label>
+                    <p id="ipv4-address" class="status-bar-field">{{ info['IPv4'] }}</p>
+
+                    <label for="ipv4-hostname">IPv4 Hostname:</label>
+                    <p id="ipv4-hostname" class="status-bar-field">{{ info['HOSTNAME_IPv4'] }}</p>
+
+                    <label for="ipv6-address">IPv6 Address:</label>
+                    <p id="ipv6-address" class="status-bar-field">{{ info['IPv6'] }}</p>
+
+                    <label for="ipv6-hostname">IPv6 Hostname:</label>
+                    <p id="ipv6-hostname" class="status-bar-field">{{ info['HOSTNAME_IPv6'] }}</p>
+
+                    <label for="x-forwarded-for">X-Forwarded-For:</label>
+                    <p id="x-forwarded-for" class="status-bar-field">{{ info['X-Forwarded-For'] }}</p>
+
+                    {% if info.get('CF_CONNECTING_IP') %}
+                    <label for="cf-connecting-ip">CF-Connecting-IP:</label>
+                    <p id="cf-connecting-ip" class="status-bar-field">{{ info['CF_CONNECTING_IP'] }}</p>
+                    {% endif %}
+
+                    <label for="initial-protocol">Initial connection via:</label>
+                    <p id="initial-protocol" class="status-bar-field">-</p>
+
+                </div>
+            </fieldset>
+            <fieldset class="headerinfo">
+                <legend>Hypertext Transfer Protocol (HTTP) Header Information</legend>
+                <div class="grid-container">
+                    <label for="host">Host:</label>
+                    <p id="host" class="status-bar-field">{{ info['HOST'] }}</p>
+
+                    <label for="user-agent">User Agent:</label>
+                    <p id="user-agent" class="status-bar-field">{{ info['USER_AGENT'] }}</p>
+
+                    <label for="language">Language:</label>
+                    <p id="language" class="status-bar-field">{{ info['LANGUAGE'] }}</p>
+
+                    <label for="encodings">Encodings:</label>
+                    <p id="encodings" class="status-bar-field">{{ info['ENCODINGS'] }}</p>
+                </div>
+            </fieldset>
+            <fieldset>
+                <legend>Internet Protocol Version Selection</legend>
+                <div class="radio-buttons">
+                    <input id="radio1" type="radio" name="ipversion" value="auto" /><label for="radio1">IPv4/IPv6 Auto</label>
+                    <input id="radio2" type="radio" name="ipversion" value="ip4" /><label for="radio2">IPv4 Only</label>
+                    <input id="radio3" type="radio" name="ipversion" value="ip6" /><label for="radio3">IPv6 Only</label>
+                </div>
+            </fieldset>
+            <div class="bottom-buttons">
+                <button id="ok-button">OK</button>
+                <button id="cancel-button">Cancel</button>
+                <button id="apply-button">Apply</button>
+            </div>
+        </div>
+        <div class="status-bar">
+            <p class="status-bar-field" id="info">Made by <a href="https://ergosteur.com">@ergosteur</a> using <a href="https://jdan.github.io/98.css/">98.css</a>.</p>
+            <p class="status-bar-field" id="clock">00:00:00</p>
+        </div>
+	</div>
+	<div id="winipcfg-icon" class="icon-component" style="display: none; position: absolute; top: 10px; left: 10px;">
+		<img id="winipcfg-icon-img" class="icon-component" src="{{ url_for('static', filename='img/winipcfg-icon.png') }}" alt="Winipcfg Icon">
+		<span id="winipcfg-icon-label" class="icon-component">Winipcfg</span>
+	</div>
+
+    <script src="{{ url_for('static', filename='js/98.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ipinfo.js') }}"></script>
+</body>
+</html>

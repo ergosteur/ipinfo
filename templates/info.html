@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Displays your public IP address, location, and network details. A Windows 98 theme version is also available.">
+    <title>IP Info - ip.1qaz.ca - What is my IP?</title>
+    <link rel="canonical" href="https://ip.1qaz.ca/">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <script src="{{ url_for('static', filename='js/ipinfo.js') }}"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1></h1>
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>Key</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key, value in info.items() %}
+                <tr>
+					<td>{{ key }}</td>
+					<td data-ip-key="{{ key }}">{{ value }}</td>
+				</tr>
+				{% endfor %}
+                <tr>  <td>Initial connection via</td>
+                    <td><span id="initial-protocol">-</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="container mt-5">
+        <p>Auto IPv4/IPv6 version: <a href="https://ip.1qaz.ca">ip.1qaz.ca</a> - IPv4 only version: <a href="https://ip4.1qaz.ca">ip4.1qaz.ca</a> - IPv6 only version: <a href="https://ip6.1qaz.ca">ip6.1qaz.ca</a></p>
+        <p>Also available in <a href="/json">json</a>, <a href="/csv">csv</a>, <a href="/txt">plain text</a>, <a href="/iponly">IP only</a>, <a href="/pfsense">pfSense-compatible</a> and <a href="/98">Windows 98</a>.</p>
+        <pre>curl ip.1qaz.ca/iponly</pre>
+        <p>Made by <a href="https://ergosteur.com">@ergosteur</a></p>
+    </div>
+</body>
+</html>
