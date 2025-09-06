@@ -1,2 +1,71 @@
 # ipinfo
-python/flask "what is my ip" site, with multiple themes/output options.
+
+## Overview
+
+ipinfo is a Python/Flask "what is my IP" service that provides your IP address and related information through a simple web interface. It supports multiple output formats including JSON, plain text, CSV, pfSense compatible output, and themed HTML pages.
+
+## Features
+
+- Displays your IP address and related info.
+- Multiple output formats: JSON, text, CSV, pfSense.
+- Themed web interface with different visual styles, including a Windows 98 theme.
+- Easy deployment with Docker Compose.
+- Supports multiple Traefik deployment modes for HTTPS.
+- Configuration through environment variables.
+
+The Windows 98 theme is inspired by and uses the `98.js` project (https://github.com/1j01/98) to recreate the classic UI look and feel.
+
+## Deployment
+
+This project is designed to be deployed using Docker Compose. A legacy systemd service (`ipinfo.service`) is included for older setups, but Docker deployment is recommended for ease of use and portability.
+
+### Quickstart
+
+```bash
+cp example.env .env
+docker compose up -d --build
+```
+
+## Docker Compose Modes
+
+There are three primary modes for deploying with Traefik:
+
+1. **HTTP-01 (Default)**  
+   Uses Traefik's HTTP-01 challenge to obtain Let's Encrypt certificates automatically. Suitable for most standard setups.
+
+2. **DNS-01 Cloudflare (Wildcard)**  
+   Uses Traefik's DNS-01 challenge with Cloudflare to obtain wildcard certificates. Requires Cloudflare API tokens configured via environment variables.
+
+3. **LAN Development Mode**  
+   Intended for local development on a LAN. Uses ephemeral self-signed certificates instead of Let's Encrypt.
+
+## Configuration via `.env`
+
+The application and Traefik are configured via environment variables in a `.env` file:
+
+- `BASE_DOMAIN` — The base domain name for your deployment.
+- `LETSENCRYPT_EMAIL` — Email address used for Let's Encrypt registration.
+- Cloudflare tokens (optional) for DNS-01 challenge mode:
+  - `CF_API_EMAIL`
+  - `CF_API_KEY`
+  - or `CF_DNS_API_TOKEN`
+
+Refer to `example.env` for all configurable variables.
+
+## License
+
+Like the upstream 98.css, this project is not yet licensed.  
+This project is currently [source-available / shared source](https://en.wikipedia.org/wiki/Source-available_software), but not [open source](https://en.wikipedia.org/wiki/Open-source_software).
+
+## Development
+
+To develop or customize the application:
+
+- Modify the Flask app source code.
+- Adjust themes or output formats as needed.
+- Use the Docker Compose setup to build and test changes quickly.
+- For local development, consider using the LAN mode for easier TLS setup.
+
+---
+
+Enjoy using ipinfo for your IP address needs!

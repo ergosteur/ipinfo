@@ -1,12 +1,30 @@
-from flask import Flask, request, jsonify, render_template, make_response, send_from_directory
+import os
+from flask import Flask, request, jsonify, render_template, make_response, send_from_directory, Response
 from flask_cors import CORS
-import socket, os
+import socket
 import csv
 from io import StringIO
+from datetime import datetime
+
+# Domain configuration
+BASE_DOMAIN = os.environ.get("BASE_DOMAIN", "1qaz.ca")
+
+# CORS origins for subdomains
+CORS_ORIGINS = [
+    f"https://ip.{BASE_DOMAIN}",
+    f"https://ip4.{BASE_DOMAIN}",
+    f"https://ip6.{BASE_DOMAIN}",
+]
 
 app = Flask(__name__)
-#CORS(app, resources={r"/*": {"origins": "https://*.1qaz.ca"}})  # Allow all subdomains of 1qaz.ca - for requesting ip json from other subdomain
-CORS(app, resources={r"/*": {"origins": ["https://ip.1qaz.ca", "https://ip4.1qaz.ca", "https://ip6.1qaz.ca"]}})
+
+# Dynamically set CORS origins based on BASE_DOMAIN
+CORS(app, resources={r"/*": {"origins": CORS_ORIGINS}})
+
+def template_context(info):
+    """Helper to provide template context including BASE_DOMAIN."""
+    return {"info": info, "BASE_DOMAIN": BASE_DOMAIN}
+
 def get_ip_info(request):
     ipv4 = None
     ipv6 = None
@@ -76,7 +94,7 @@ def get_ip_info(request):
 @app.route('/')
 def html_info():
     info = get_ip_info(request)
-    return render_template('info.html', info=info)
+    return render_template('info.html', **template_context(info))
 
 @app.route('/favicon.ico')
 def favicon():
@@ -135,7 +153,7 @@ def pfsense_ip_check():
 @app.route('/98')
 def windows98_info():
     info = get_ip_info(request)
-    return render_template('98/index.html', info=info)
+    return render_template('98/index.html', **template_context(info))
 
 if __name__ == '__main__':
     # Not used with Gunicorn
@@ -145,10 +163,38 @@ if __name__ == '__main__':
 # Route for robots.txt
 @app.route('/robots.txt')
 def serve_robots_txt():
-    return send_from_directory(os.path.join(app.root_path, 'static'), 'robots.txt', mimetype='text/plain')
+    content = f"""User-agent: *
+Disallow: https://ip4.{BASE_DOMAIN}/
+Disallow: https://ip6.{BASE_DOMAIN}/
+
+Sitemap: https://ip.{BASE_DOMAIN}/sitemap.xml
+"""
+    return Response(content, mimetype="text/plain")
 
 # Route for sitemap.xml
 @app.route('/sitemap.xml')
 def serve_sitemap_xml():
-    return send_from_directory(os.path.join(app.root_path, 'static'), 'sitemap.xml', mimetype='application/xml')
-
+    now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+    base_url = f"https://ip.{BASE_DOMAIN}"
+    urls = [
+        "/",
+        "/json",
+        "/txt",
+        "/csv",
+        "/iponly",
+        "/pfsense",
+        "/98"
+    ]
+    urlset = ""
+    for url in urls:
+        urlset += f"""
+    <url>
+        <loc>{base_url}{url}</loc>
+        <lastmod>{now}</lastmod>
+        <changefreq>daily</changefreq>
+        <priority>0.8</priority>
+    </url>"""
+    sitemap_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urlset}
+</urlset>"""
+    return Response(sitemap_xml, mimetype="application/xml")

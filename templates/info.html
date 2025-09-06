@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Displays your public IP address, location, and network details. A Windows 98 theme version is also available.">
-    <title>IP Info - ip.1qaz.ca - What is my IP?</title>
-    <link rel="canonical" href="https://ip.1qaz.ca/">
+    <title>IP Info - ip.{{ BASE_DOMAIN }} - What is my IP?</title>
+    <link rel="canonical" href="https://ip.{{ BASE_DOMAIN }}/">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <script src="{{ url_for('static', filename='js/ipinfo.js') }}"></script>
@@ -34,9 +34,9 @@
         </table>
     </div>
     <div class="container mt-5">
-        <p>Auto IPv4/IPv6 version: <a href="https://ip.1qaz.ca">ip.1qaz.ca</a> - IPv4 only version: <a href="https://ip4.1qaz.ca">ip4.1qaz.ca</a> - IPv6 only version: <a href="https://ip6.1qaz.ca">ip6.1qaz.ca</a></p>
+        <p>Auto IPv4/IPv6 version: <a href="https://ip.{{ BASE_DOMAIN }}">ip.{{ BASE_DOMAIN }}</a> - IPv4 only version: <a href="https://ip4.{{ BASE_DOMAIN }}">ip4.{{ BASE_DOMAIN }}</a> - IPv6 only version: <a href="https://ip6.{{ BASE_DOMAIN }}">ip6.{{ BASE_DOMAIN }}</a></p>
         <p>Also available in <a href="/json">json</a>, <a href="/csv">csv</a>, <a href="/txt">plain text</a>, <a href="/iponly">IP only</a>, <a href="/pfsense">pfSense-compatible</a> and <a href="/98">Windows 98</a>.</p>
-        <pre>curl ip.1qaz.ca/iponly</pre>
+        <pre>curl ip.{{ BASE_DOMAIN }}/iponly</pre>
         <p>Made by <a href="https://ergosteur.com">@ergosteur</a></p>
     </div>
 </body>

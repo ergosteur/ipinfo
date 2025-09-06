@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  ipinfo:
+    build: .
+    container_name: ipinfo
+    restart: always
+    environment:
+      - BASE_DOMAIN=${BASE_DOMAIN}
+    expose:
+      - "8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ip.rule=Host(`ip.${BASE_DOMAIN}`)"
+      - "traefik.http.routers.ip4.rule=Host(`ip4.${BASE_DOMAIN}`)"
+      - "traefik.http.routers.ip6.rule=Host(`ip6.${BASE_DOMAIN}`)"
+      - "traefik.http.services.ip.loadbalancer.server.port=8000"
+    networks:
+      - web
+
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: always
+    environment:
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+      - CF_ZONE_API_TOKEN=${CF_ZONE_API_TOKEN}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+    command:
+      # Default mode: HTTP-01 challenge with redirect from HTTP to HTTPS
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --providers.docker=true
+      # Uncomment the following lines to enable Cloudflare DNS-01 challenge for wildcard certificates
+      # - --certificatesresolvers.myresolver.acme.dnschallenge=true
+      # - --certificatesresolvers.myresolver.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.myresolver.acme.httpchallenge=true
+      - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.myresolver.acme.email=${LETSENCRYPT_EMAIL}
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+
+      # LAN dev mode: ephemeral self-signed certificates, no redirect
+      # To enable LAN dev mode, comment out the above entrypoints and ACME configs,
+      # and uncomment the following lines:
+      # - --entrypoints.web.address=:80
+      # - --entrypoints.websecure.address=:443
+      # - --entrypoints.websecure.http.tls=true
+      # - --providers.docker=true
+      # - --certificatesresolvers.myresolver.acme=false
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
