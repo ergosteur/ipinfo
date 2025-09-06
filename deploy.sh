@@ -72,12 +72,58 @@ if [[ $UPDATE_MODE -eq 0 ]]; then
   apt update
   apt install -y python3 python3-venv python3-pip git curl debian-keyring debian-archive-keyring apt-transport-https jq
 
+  # --- install Go if missing or too old ---
+  install_go() {
+    local required_version="1.22"
+    local go_version=""
+    if command -v go &>/dev/null; then
+      go_version=$(go version | awk '{print $3}' | sed 's/go//')
+    fi
+
+    version_ge() {
+      # returns 0 if $1 >= $2
+      [ "$(printf '%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
+    }
+
+    if [[ -z "$go_version" ]] || ! version_ge "$go_version" "$required_version"; then
+      echo "Installing Go $required_version or newer..."
+
+      GO_ARCH="amd64"
+      GO_OS="linux"
+      GO_VERSION="1.22.10"
+
+      # Clean previous Go installation if exists
+      if [ -d /usr/local/go ]; then
+        rm -rf /usr/local/go
+      fi
+
+      TMPDIR=$(mktemp -d)
+      GO_TAR="go${GO_VERSION}.${GO_OS}-${GO_ARCH}.tar.gz"
+      curl -fsSL "https://go.dev/dl/${GO_TAR}" -o "${TMPDIR}/${GO_TAR}"
+      tar -C /usr/local -xzf "${TMPDIR}/${GO_TAR}"
+      rm -rf "${TMPDIR}"
+
+      export PATH="/usr/local/go/bin:$PATH"
+
+      # Verify installation
+      if ! command -v go &>/dev/null; then
+        echo "Go installation failed"
+        exit 1
+      fi
+    else
+      echo "Go version $go_version is already installed and meets requirement."
+    fi
+  }
+
+  install_go
+
   # --- install Caddy (with Cloudflare DNS support) ---
   if ! command -v caddy &>/dev/null; then
-    echo "Installing Go and xcaddy..."
-    apt install -y golang git
+    echo "Installing xcaddy..."
+    apt install -y git
 
     # Install xcaddy
+    export PATH="/usr/local/go/bin:$PATH"
     go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
     export PATH=$PATH:/root/go/bin
 
