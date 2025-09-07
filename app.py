@@ -26,6 +26,8 @@ ALLOWED_HOSTS = {
     f"ip.{BASE_DOMAIN}",
     f"ip4.{BASE_DOMAIN}",
     f"ip6.{BASE_DOMAIN}",
+    "localhost",
+    "127.0.0.1",
 }
 
 @app.before_request
