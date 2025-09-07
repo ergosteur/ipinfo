@@ -23,9 +23,9 @@ services:
     container_name: traefik
     restart: always
     environment:
-      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
-      - CF_ZONE_API_TOKEN=${CF_ZONE_API_TOKEN}
-      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+      - CF_DNS_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      - CF_ZONE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      - LETSENCRYPT_EMAIL=${EMAIL}
     command:
       # Default mode: HTTP-01 challenge with redirect from HTTP to HTTPS
       - --entrypoints.web.address=:80

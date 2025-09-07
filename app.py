@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify, render_template, make_response, send_from_directory, Response
+from flask import Flask, request, jsonify, render_template, make_response, send_from_directory, Response, abort
 from flask_cors import CORS
 import socket
 import csv
@@ -20,6 +20,25 @@ app = Flask(__name__)
 
 # Dynamically set CORS origins based on BASE_DOMAIN
 CORS(app, resources={r"/*": {"origins": CORS_ORIGINS}})
+
+# Host validation
+ALLOWED_HOSTS = {
+    f"ip.{BASE_DOMAIN}",
+    f"ip4.{BASE_DOMAIN}",
+    f"ip6.{BASE_DOMAIN}",
+}
+
+@app.before_request
+def enforce_host_validation():
+    strict_check = os.environ.get("STRICT_HOST_CHECK", "true").lower()
+    if strict_check != "false":
+        # Always strip port and lowercase
+        req_host = request.host.split(":")[0].lower()
+        if req_host not in ALLOWED_HOSTS:
+            return make_response(
+                f"Host '{req_host}' is not accepted. Allowed hosts: {', '.join(ALLOWED_HOSTS)}",
+                400,
+            )
 
 def template_context(info):
     """Helper to provide template context including BASE_DOMAIN."""
