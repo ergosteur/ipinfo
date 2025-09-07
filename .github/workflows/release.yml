@@ -26,9 +26,5 @@ jobs:
           TAG=${GITHUB_REF_NAME} # e.g. v1.2.3
           IMAGE_NAME=${{ secrets.DOCKERHUB_USERNAME }}/ipinfo
 
-          # Build image
-          docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:$TAG .
-
-          # Push both tags
-          docker push $IMAGE_NAME:latest
-          docker push $IMAGE_NAME:$TAG
+          # Build and push multi-arch image
+          docker buildx build --platform linux/amd64,linux/arm64 -t $IMAGE_NAME:latest -t $IMAGE_NAME:$TAG --push .
