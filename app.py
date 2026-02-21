@@ -66,7 +66,12 @@ def enforce_host_validation():
 
 def template_context(info):
     """Helper to provide template context including BASE_DOMAIN."""
-    return {"info": info, "BASE_DOMAIN": BASE_DOMAIN}
+    return {
+        "info": info,
+        "BASE_DOMAIN": BASE_DOMAIN,
+        "CURRENT_HOST": request.host,
+        "NO_IP_VERSION_SUBDOMAINS": os.environ.get("NO_IP_VERSION_SUBDOMAINS", "false").lower() == "true",
+    }
 
 def is_public_ip(ip):
     """Check if an IP address is a public one (not private or loopback)."""

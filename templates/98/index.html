@@ -66,6 +66,7 @@
                     <p id="encodings" class="status-bar-field">{{ info['ENCODINGS'] }}</p>
                 </div>
             </fieldset>
+            {% if not NO_IP_VERSION_SUBDOMAINS %}
             <fieldset>
                 <legend>Internet Protocol Version Selection</legend>
                 <div class="radio-buttons">
@@ -74,6 +75,7 @@
                     <input id="radio3" type="radio" name="ipversion" value="ip6" /><label for="radio3">IPv6 Only</label>
                 </div>
             </fieldset>
+            {% endif %}
             <div class="bottom-buttons">
                 <button id="ok-button">OK</button>
                 <button id="cancel-button">Cancel</button>
@@ -81,7 +83,7 @@
             </div>
         </div>
         <div class="status-bar">
-            <p class="status-bar-field" id="info">Made by <a href="https://ergosteur.com">@ergosteur</a> using <a href="https://jdan.github.io/98.css/">98.css</a>.</p>
+            <p class="status-bar-field" id="info">Made by <a href="https://ergosteur.com">@ergosteur</a> - <a href="https://github.com/ergosteur/ipinfo">GitHub</a> using <a href="https://jdan.github.io/98.css/">98.css</a>.</p>
             <p class="status-bar-field" id="clock">00:00:00</p>
         </div>
 	</div>
