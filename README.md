@@ -1,5 +1,8 @@
 # ipinfo
 
+[![Docker Hub](https://img.shields.io/docker/pulls/ergosteur/ipinfo.svg)](https://hub.docker.com/r/ergosteur/ipinfo)
+[![Docker Image Version (latest semver)](https://img.shields.io/docker/v/ergosteur/ipinfo?sort=semver)](https://hub.docker.com/r/ergosteur/ipinfo)
+
 ## Overview
 
 ipinfo is a Python/Flask "what is my IP" service that provides your IP address and related information through a simple web interface. It supports multiple output formats including JSON, plain text, CSV, pfSense compatible output, and themed HTML pages.
@@ -37,7 +40,7 @@ sudo ./deploy.sh -d yourdomain.com -e you@example.com
 ```
 
 ### Quickstart with docker compose
-The Docker Compose setup provides three deployment modes, including a DNS-01 challenge mode for Cloudflare to support wildcard certificates.
+The Docker Compose setup provides three deployment modes, including a DNS-01 challenge mode for Cloudflare to support wildcard certificates. It uses the official [ergosteur/ipinfo](https://hub.docker.com/r/ergosteur/ipinfo) image from Docker Hub.
 
 ```bash
 git clone https://github.com/ergosteur/ipinfo.git
