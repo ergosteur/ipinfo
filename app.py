@@ -71,6 +71,7 @@ def template_context(info):
         "BASE_DOMAIN": BASE_DOMAIN,
         "CURRENT_HOST": request.host,
         "NO_IP_VERSION_SUBDOMAINS": os.environ.get("NO_IP_VERSION_SUBDOMAINS", "false").lower() == "true",
+        "WIN98_DEFAULT": os.environ.get("WIN98_DEFAULT", "false").lower() == "true",
     }
 
 def is_public_ip(ip):
@@ -177,6 +178,13 @@ def get_ip_info(request):
 @app.route('/')
 def html_info():
     info = get_ip_info(request)
+    if os.environ.get("WIN98_DEFAULT", "false").lower() == "true":
+        return render_template('98/index.html', **template_context(info))
+    return render_template('info.html', **template_context(info))
+
+@app.route('/standard')
+def standard_info():
+    info = get_ip_info(request)
     return render_template('info.html', **template_context(info))
 
 @app.route('/favicon.ico')
@@ -266,7 +274,8 @@ def serve_sitemap_xml():
         "/csv",
         "/iponly",
         "/pfsense",
-        "/98"
+        "/98",
+        "/standard"
     ]
     urlset = ""
     for url in urls:

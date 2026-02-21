@@ -7,7 +7,7 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="apple-touch-icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/winipcfg.png') }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/winipcfg.png') }}">
-    <link rel="canonical" href="https://ip.{{ BASE_DOMAIN }}/">
+    <link rel="canonical" href="https://{% if NO_IP_VERSION_SUBDOMAINS %}{{ CURRENT_HOST }}{% else %}ip.{{ BASE_DOMAIN }}{% endif %}/">
     <meta name="description" content="Displays your public IP address, location, and network details, presented with a Windows 98 retro theme.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
@@ -83,7 +83,9 @@
             </div>
         </div>
         <div class="status-bar">
-            <p class="status-bar-field" id="info">Made by <a href="https://ergosteur.com">@ergosteur</a> - <a href="https://github.com/ergosteur/ipinfo">GitHub</a> using <a href="https://jdan.github.io/98.css/">98.css</a>.</p>
+            <p class="status-bar-field">Made by <a href="https://ergosteur.com">@ergosteur</a> using <a href="https://jdan.github.io/98.css/">98.css</a></p>
+            <p class="status-bar-field"><a href="https://github.com/ergosteur/ipinfo">GitHub</a></p>
+            <p class="status-bar-field">{% if WIN98_DEFAULT %}<a href="/standard">Standard Version</a>{% else %}<a href="/">Standard Version</a>{% endif %}</p>
             <p class="status-bar-field" id="clock">00:00:00</p>
         </div>
 	</div>

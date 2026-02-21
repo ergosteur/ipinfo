@@ -93,8 +93,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Button event listeners
     okButton.addEventListener('click', applySettings);
     applyButton.addEventListener('click', applySettings);
-	if (cancelButton) {cancelButton.addEventListener('click', function() {window.location.href = '/'; }); }
-	if (closeButton) {
+	    if (cancelButton) {
+	        cancelButton.addEventListener('click', function() {
+	            if (window.location.pathname === '/') {
+	                window.location.href = '/standard';
+	            } else {
+	                window.location.href = '/';
+	            }
+	        });
+	    }	if (closeButton) {
         closeButton.addEventListener('click', function() {
             //window.location.href = '/';
 			if (!isMinimized) {
