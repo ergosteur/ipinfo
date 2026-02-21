@@ -26,21 +26,26 @@ For accurate detection of client IP addresses, ipinfo is best deployed on a VPS 
 This project can be deployed using Docker Compose, or as a systemd service.
 
 ### Quickstart with systemd
-The `deploy.sh` script autonomously installs all dependencies (including Caddy), sets up the `ipinfo` user, and configures the systemd service.
+The `deploy.sh` script autonomously installs all dependencies (including Caddy), sets up the `ipinfo` user, and configures the systemd service. It also supports optional Cloudflare DNS automation for both record management and DNS-01 certificate challenges.
 
 ```bash
 git clone https://github.com/ergosteur/ipinfo.git
 cd ipinfo/
+# Use -h to see all available options (whitelist, cloudflare, etc.)
+sudo ./deploy.sh -h
+
+# Standard deploy
 sudo ./deploy.sh -d yourdomain.com -e you@example.com
 ```
 
 ### Quickstart with docker compose
+The Docker Compose setup provides three deployment modes, including a DNS-01 challenge mode for Cloudflare to support wildcard certificates.
 
 ```bash
 git clone https://github.com/ergosteur/ipinfo.git
 cd ipinfo/
 cp example.env .env
-# Edit .env and set your BASE_DOMAIN
+# Edit .env and set your BASE_DOMAIN, EMAIL, and optional CF tokens
 docker compose up -d
 ```
 
