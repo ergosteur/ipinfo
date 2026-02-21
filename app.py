@@ -68,6 +68,15 @@ def template_context(info):
     """Helper to provide template context including BASE_DOMAIN."""
     return {"info": info, "BASE_DOMAIN": BASE_DOMAIN}
 
+def is_public_ip(ip):
+    """Check if an IP address is a public one (not private or loopback)."""
+    try:
+        import ipaddress
+        addr = ipaddress.ip_address(ip)
+        return not (addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_multicast)
+    except ValueError:
+        return False
+
 def get_ip_info(request):
     ipv4 = None
     ipv6 = None
@@ -75,17 +84,43 @@ def get_ip_info(request):
     x_forwarded_for = request.headers.get('X-Forwarded-For')
     if x_forwarded_for:
         ips = [ip.strip() for ip in x_forwarded_for.split(',')]
+        
+        # 1. Try to find the first PUBLIC IPv4 and IPv6
         for ip in ips:
-            try:
-                socket.inet_pton(socket.AF_INET, ip)
-                ipv4 = ip
-            except socket.error:
+            if not ipv4:
+                try:
+                    socket.inet_pton(socket.AF_INET, ip)
+                    if is_public_ip(ip):
+                        ipv4 = ip
+                except socket.error:
+                    pass
+            if not ipv6:
+                try:
+                    socket.inet_pton(socket.AF_INET6, ip)
+                    if is_public_ip(ip):
+                        ipv6 = ip
+                except socket.error:
+                    pass
+        
+        # 2. Fallback: If no public IP found, take the very first one in the list
+        if not ipv4:
+            for ip in ips:
+                try:
+                    socket.inet_pton(socket.AF_INET, ip)
+                    ipv4 = ip
+                    break
+                except socket.error:
+                    pass
+        if not ipv6:
+            for ip in ips:
                 try:
                     socket.inet_pton(socket.AF_INET6, ip)
                     ipv6 = ip
+                    break
                 except socket.error:
                     pass
     else:
+        # No X-Forwarded-For, use remote_addr
         try:
             socket.inet_pton(socket.AF_INET, request.remote_addr)
             ipv4 = request.remote_addr
