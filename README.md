@@ -23,10 +23,8 @@ The Windows 98 theme is inspired by and uses the `98.js` project (https://github
 **Note:**  
 For accurate detection of client IP addresses, ipinfo is best deployed on a VPS or VM with its own public IP address. The default Traefik or Caddy configuration requires that ports 80 and 443 are available on the host. If you prefer not to use the included Traefik setup, the Flask app can also be integrated into your own existing reverse proxy configuration.
 
-This project can be deployed using Docker Compose, or as a systemd service.
-
 ### Quickstart with systemd
-The `deploy.sh` script autonomously installs all dependencies (including Caddy), sets up the `ipinfo` user, and configures the systemd service. It also supports optional Cloudflare DNS automation for both record management and DNS-01 certificate challenges.
+The `deploy.sh` script autonomously installs all dependencies (including Caddy), sets up the `ipinfo` user, and configures the systemd service.
 
 ```bash
 git clone https://github.com/ergosteur/ipinfo.git
@@ -62,9 +60,28 @@ For the application to function correctly and provide separate IPv4/IPv6 endpoin
 
 *Note: Ensure that your server has a public IPv6 address if you intend to use the IPv6/AAAA records.*
 
-## Docker Compose Modes
+## Manual Deployment (`deploy.sh`)
 
-There are three primary modes for deploying with Traefik:
+The `deploy.sh` script is provided for users who prefer a traditional systemd + reverse proxy (Caddy) setup without Docker. It handles environment checks, user creation, dependency installation, and SSL configuration.
+
+### Usage
+```bash
+# First deployment with domain and email
+./deploy.sh -d example.com -e you@example.com -w "1.1.1.1,2.2.2.2"
+
+# Update an existing deployment
+./deploy.sh -u
+```
+
+### Cloudflare DNS Automation
+The script supports optional Cloudflare DNS automation to simplify DNS setup and enable wildcard DNS-01 challenges in Caddy.
+```bash
+./deploy.sh -d example.com -e you@example.com -t YOUR_CF_TOKEN -z YOUR_CF_ZONE
+```
+
+## Docker Deployment Modes
+
+The Docker Compose setup uses **Traefik v3** as a reverse proxy. There are three primary modes:
 
 1. **HTTP-01 (Default)**  
    Uses Traefik's HTTP-01 challenge to obtain Let's Encrypt certificates automatically. Suitable for most standard setups.
@@ -74,34 +91,6 @@ There are three primary modes for deploying with Traefik:
 
 3. **LAN Development Mode**  
    Intended for local development on a LAN. Uses ephemeral self-signed certificates instead of Let's Encrypt.
-
-## Deployment without Docker
-
-A `deploy.sh` script is provided to deploy ipinfo without Docker. This script installs necessary dependencies, sets up the Flask application with systemd (running under a dedicated `ipinfo` user), and configures Caddy as a reverse proxy for HTTPS.
-
-### Usage
-
-- First deployment with domain and email:
-
-  ```bash
-  ./deploy.sh -d example.com -e you@example.com -w "1.1.1.1,2.2.2.2"
-  ```
-
-- Update an existing deployment:
-
-  ```bash
-  ./deploy.sh -u
-  ```
-
-### Cloudflare DNS Automation
-
-The script supports optional Cloudflare DNS automation to simplify DNS setup and enable wildcard DNS-01 challenges in Caddy.
-
-- Use the following arguments to enable Cloudflare integration:
-
-  ```bash
-  ./deploy.sh -d example.com -e you@example.com -t YOUR_CF_TOKEN -z YOUR_CF_ZONE
-  ```
 
 ## Configuration via `.env`
 
