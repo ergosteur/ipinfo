@@ -1,6 +1,7 @@
 import os
 from flask import Flask, request, jsonify, render_template, make_response, send_from_directory, Response, abort
 from flask_cors import CORS
+from flask_limiter import Limiter
 import socket
 import csv
 from io import StringIO
@@ -17,6 +18,27 @@ CORS_ORIGINS = [
 ]
 
 app = Flask(__name__)
+
+# Rate Limiting
+def get_client_ip_for_limiter():
+    """Get client IP, trusting X-Forwarded-For because we are behind Traefik."""
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    return request.remote_addr
+
+limiter = Limiter(
+    key_func=get_client_ip_for_limiter,
+    app=app,
+    default_limits=["5000 per day", "200 per hour"],
+    storage_uri="memory://",
+)
+
+@limiter.request_filter
+def is_whitelisted():
+    """Check if the client IP is whitelisted."""
+    client_ip = get_client_ip_for_limiter()
+    whitelist = os.environ.get("WHITELIST_IPS", "").split(",")
+    return client_ip in [ip.strip() for ip in whitelist if ip.strip()]
 
 # Dynamically set CORS origins based on BASE_DOMAIN
 CORS(app, resources={r"/*": {"origins": CORS_ORIGINS}})
