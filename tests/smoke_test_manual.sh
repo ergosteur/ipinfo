@@ -49,16 +49,17 @@ while [ ! -S "$SOCKET_FILE" ]; do
 done
 
 echo "--- Verifying application response via Unix socket ---"
-# We use --unix-socket to talk directly to Gunicorn
-# Note: Host header is still required for Flask routing/CORS but we disabled strict check
-RESPONSE=$(curl -s --unix-socket "$SOCKET_FILE" http://localhost/json)
+# We send a spoofed X-Forwarded-For header to simulate a proxy like Caddy
+# and verify the app correctly picks it up.
+SPOOFED_IP="1.2.3.4"
+RESPONSE=$(curl -s -H "X-Forwarded-For: $SPOOFED_IP" --unix-socket "$SOCKET_FILE" http://localhost/json)
 
 echo "Response received: $RESPONSE"
 
-if echo "$RESPONSE" | grep -q '"IPv4"'; then
-    echo "SUCCESS: Application is running and responding correctly over Unix socket."
+if echo "$RESPONSE" | grep -q "\"IPv4\":\"$SPOOFED_IP\""; then
+    echo "SUCCESS: Application correctly identifies client IP from X-Forwarded-For over Unix socket."
 else
-    echo "FAILURE: Unexpected response from application."
+    echo "FAILURE: Application failed to identify client IP from X-Forwarded-For."
     exit 1
 fi
 
