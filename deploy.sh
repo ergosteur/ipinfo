@@ -153,7 +153,8 @@ Description=Caddy web server
 After=network.target
 
 [Service]
-User=$USER
+User=root
+Group=ipinfo
 EOF
 if [[ -n "$CF_TOKEN" ]]; then
   tee -a /etc/systemd/system/caddy.service >/dev/null <<EOF
@@ -243,11 +244,11 @@ if [[ -n "$CF_TOKEN" ]]; then
     tls {
         dns cloudflare {env.CLOUDFLARE_API_TOKEN}
     }
-    reverse_proxy 127.0.0.1:5000
+    reverse_proxy unix//run/ipinfo/ipinfo.sock
 }
 
 http://*.${DOMAIN} {
-    reverse_proxy 127.0.0.1:5000
+    reverse_proxy unix//run/ipinfo/ipinfo.sock
 }
 EOF
 else
@@ -259,21 +260,21 @@ else
 }
 
 *.${DOMAIN} {
-    reverse_proxy 127.0.0.1:5000
+    reverse_proxy unix//run/ipinfo/ipinfo.sock
 }
 
 http://*.${DOMAIN} {
-    reverse_proxy 127.0.0.1:5000
+    reverse_proxy unix//run/ipinfo/ipinfo.sock
 }
 EOF
   else
     tee /etc/caddy/Caddyfile >/dev/null <<EOF
 *.${DOMAIN} {
-    reverse_proxy 127.0.0.1:5000
+    reverse_proxy unix//run/ipinfo/ipinfo.sock
 }
 
 http://*.${DOMAIN} {
-    reverse_proxy 127.0.0.1:5000
+    reverse_proxy unix//run/ipinfo/ipinfo.sock
 }
 EOF
   fi
