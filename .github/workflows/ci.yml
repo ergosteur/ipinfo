@@ -25,6 +25,21 @@ jobs:
       - name: Run tests
         run: pytest
 
+  # Verify the manual deployment path (Gunicorn + Unix Socket)
+  manual-smoke-test:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run manual smoke test
+        run: |
+          chmod +x tests/smoke_test_manual.sh
+          ./tests/smoke_test_manual.sh
+
   # Slow feedback: Integration/Smoke Test via Docker
   docker-smoke-test:
     needs: test
