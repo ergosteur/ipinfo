@@ -21,12 +21,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Pre-select the appropriate radio button based on the current URL
     const currentUrl = window.location.href;
-    if (currentUrl.includes("ip4.")) {
-        document.getElementById("radio2").checked = true;
-    } else if (currentUrl.includes("ip6.")) {
-        document.getElementById("radio3").checked = true;
-    } else {
-        document.getElementById("radio1").checked = true;
+    const radio1 = document.getElementById("radio1");
+    const radio2 = document.getElementById("radio2");
+    const radio3 = document.getElementById("radio3");
+
+    if (radio1 && radio2 && radio3) {
+        if (currentUrl.includes("ip4.")) {
+            radio2.checked = true;
+        } else if (currentUrl.includes("ip6.")) {
+            radio3.checked = true;
+        } else {
+            radio1.checked = true;
+        }
     }
 
     // -------------------------------------------------------------------------
