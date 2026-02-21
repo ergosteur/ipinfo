@@ -1,25 +1,27 @@
 [Unit]
-Description=IP Info Flask App
+Description=ipinfo Flask app
 After=network.target
 
 [Service]
 User=ipinfo
-Group=www-data
+Group=ipinfo
+Environment=BASE_DOMAIN=yourdomain.com
+Environment=WHITELIST_IPS=
 WorkingDirectory=/srv/ipinfo
 
-# Use RuntimeDirectory to automatically create /run/ipinfo with correct ownership (User/Group of service)
-# and specified mode. This is the ideal way for /run directories.
+# Setup runtime directory for the Unix socket
 RuntimeDirectory=ipinfo
-RuntimeDirectoryMode=0770 # rwxrwx--- for owner (ipinfo) and group (www-data)
+RuntimeDirectoryMode=0775
 
-# Ensure the 'logs' directory exists (not in /run, so still needs mkdir)
+# Ensure logs directory exists
 ExecStartPre=/bin/mkdir -p /srv/ipinfo/logs
+ExecStartPre=/bin/chown ipinfo:ipinfo /srv/ipinfo/logs
 
-# Set umask so the created socket file has correct permissions for group access
-UMask=007
+# Set umask to allow group access to the socket
+UMask=002
 
-# Start gunicorn with specific settings
-ExecStart=/usr/bin/gunicorn \
+# Run Gunicorn with logging
+ExecStart=/srv/ipinfo/venv/bin/gunicorn \
   --workers 3 \
   --bind unix:/run/ipinfo/ipinfo.sock \
   --access-logfile /srv/ipinfo/logs/access.log \

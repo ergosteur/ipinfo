@@ -1,3 +1,5 @@
-flask
-flask-cors
-gunicorn
+flask>=3.0,<5.0
+flask-cors>=4.0,<6.0
+gunicorn>=21.2,<24.0
+Flask-Limiter>=3.5,<5.0
+pytest>=7.0,<9.0

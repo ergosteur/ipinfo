@@ -1,32 +1,80 @@
-name: CI Docker Build and test
+name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "*" ]
   pull_request:
 
 jobs:
-  build:
+  # Fast feedback: Run Unit Tests
+  test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Run tests
+        run: pytest
 
+  # Verify the manual deployment path (Gunicorn + Unix Socket)
+  manual-smoke-test:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run manual smoke test
+        run: |
+          chmod +x tests/smoke_test_manual.sh
+          ./tests/smoke_test_manual.sh
+
+  # Verify IPv4/IPv6 networking and Host validation
+  network-smoke-test:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run network smoke test
+        run: |
+          chmod +x tests/smoke_test_network.sh
+          ./tests/smoke_test_network.sh
+
+  # Slow feedback: Integration/Smoke Test via Docker
+  docker-smoke-test:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Build Docker image
-        run: docker buildx build --platform linux/${{ matrix.arch }} --load -t ipinfo:test .
-
-      - name: Run container and test
+        
+      - name: Build and Export
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: ipinfo:test
+          
+      - name: Run container check
         run: |
           docker run -d -p 8000:8000 --name ipinfo ipinfo:test
           sleep 5
-          curl -f http://localhost:8000/json | grep '"IPv4"' 
-          docker stop ipinfo
+          # Verify it responds and contains expected JSON key
+          curl -f http://localhost:8000/json | grep '"IPv4"'
