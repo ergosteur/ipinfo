@@ -20,11 +20,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r ipinfo/requirements.txt
+          pip install -r requirements.txt
           
       - name: Run tests
-        # Navigate to subdirectory where tests and app.py exist
-        working-directory: ipinfo
         run: pytest
 
   # Slow feedback: Integration/Smoke Test via Docker
@@ -40,7 +38,7 @@ jobs:
       - name: Build and Export
         uses: docker/build-push-action@v5
         with:
-          context: ./ipinfo
+          context: .
           load: true
           tags: ipinfo:test
           
