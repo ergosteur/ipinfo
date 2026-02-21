@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Displays your public IP address, location, and network details. A Windows 98 theme version is also available.">
-    <title>IP Info - ip.{{ BASE_DOMAIN }} - What is my IP?</title>
-    <link rel="canonical" href="https://ip.{{ BASE_DOMAIN }}/">
+    <title>IP Info - {% if NO_IP_VERSION_SUBDOMAINS %}{{ CURRENT_HOST }}{% else %}ip.{{ BASE_DOMAIN }}{% endif %} - What is my IP?</title>
+    <link rel="canonical" href="https://{% if NO_IP_VERSION_SUBDOMAINS %}{{ CURRENT_HOST }}{% else %}ip.{{ BASE_DOMAIN }}{% endif %}/">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <script src="{{ url_for('static', filename='js/ipinfo.js') }}"></script>
@@ -37,7 +37,7 @@
         {% if not NO_IP_VERSION_SUBDOMAINS %}
         <p>Auto IPv4/IPv6 version: <a href="https://ip.{{ BASE_DOMAIN }}">ip.{{ BASE_DOMAIN }}</a> - IPv4 only version: <a href="https://ip4.{{ BASE_DOMAIN }}">ip4.{{ BASE_DOMAIN }}</a> - IPv6 only version: <a href="https://ip6.{{ BASE_DOMAIN }}">ip6.{{ BASE_DOMAIN }}</a></p>
         {% endif %}
-        <p>Also available in <a href="/json">json</a>, <a href="/csv">csv</a>, <a href="/txt">plain text</a>, <a href="/iponly">IP only</a>, <a href="/pfsense">pfSense-compatible</a> and <a href="/98">Windows 98</a>.</p>
+        <p>Also available in <a href="/json">json</a>, <a href="/csv">csv</a>, <a href="/txt">plain text</a>, <a href="/iponly">IP only</a>, <a href="/pfsense">pfSense-compatible</a> and {% if WIN98_DEFAULT %}<a href="/">Windows 98</a>{% else %}<a href="/98">Windows 98</a>{% endif %}.</p>
         <pre>curl -L {{ CURRENT_HOST }}/iponly</pre>
         <p>Made by <a href="https://ergosteur.com">@ergosteur</a> - <a href="https://github.com/ergosteur/ipinfo">GitHub</a></p>
     </div>
