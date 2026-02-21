@@ -21,16 +21,27 @@ The Windows 98 theme is inspired by and uses the `98.js` project (https://github
 ## Deployment
 
 **Note:**  
-For accurate detection of client IP addresses, ipinfo is best deployed on a VPS or VM with its own public IP address. The default Traefik configuration requires that ports 80 and 443 are available on the Docker host. If you prefer not to use the included Traefik setup, the Flask app can also be integrated into your own existing reverse proxy configuration.
+For accurate detection of client IP addresses, ipinfo is best deployed on a VPS or VM with its own public IP address. The default Traefik or Caddy configuration requires that ports 80 and 443 are available on the host. If you prefer not to use the included Traefik setup, the Flask app can also be integrated into your own existing reverse proxy configuration.
 
-This project is designed to be deployed using Docker Compose. A legacy systemd service (`ipinfo.service`) is included for older setups, but Docker deployment is recommended for ease of use and portability.
+This project can be deployed using Docker Compose, or as a systemd service.
 
-### Quickstart
+### Quickstart with systemd
+The `deploy.sh` script autonomously installs all dependencies (including Caddy), sets up the `ipinfo` user, and configures the systemd service.
 
 ```bash
+git clone https://github.com/ergosteur/ipinfo.git
+cd ipinfo/
+sudo ./deploy.sh -d yourdomain.com -e you@example.com
+```
+
+### Quickstart with docker compose
+
+```bash
+git clone https://github.com/ergosteur/ipinfo.git
+cd ipinfo/
 cp example.env .env
 # Edit .env and set your BASE_DOMAIN
-docker compose up -d --build
+docker compose up -d
 ```
 
 ## DNS Setup
