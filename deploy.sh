@@ -14,21 +14,23 @@ DOMAIN=""
 EMAIL=""
 CF_TOKEN=""
 CF_ZONE=""
+WHITELIST_IPS=""
 UPDATE_MODE=0
 
 usage() {
-  echo "Usage: $0 [-d domain] [-e email] [-t cf_token] [-z cf_zone] [-u] [-h]"
+  echo "Usage: $0 [-d domain] [-e email] [-t cf_token] [-z cf_zone] [-w whitelist_ips] [-u] [-h]"
   echo ""
   echo "Options:"
-  echo "  -d DOMAIN      Set the domain name (default: ip.example.com or BASE_DOMAIN env)"
-  echo "  -e EMAIL       Set the email for TLS certificates"
-  echo "  -t CF_TOKEN    Cloudflare API token for DNS challenge and DNS record management"
-  echo "  -z CF_ZONE     Cloudflare zone ID for DNS record management"
-  echo "  -u             Update mode (skip installation and venv creation)"
-  echo "  -h             Show this help message and exit"
+  echo "  -d DOMAIN         Set the domain name (default: ip.example.com or BASE_DOMAIN env)"
+  echo "  -e EMAIL          Set the email for TLS certificates"
+  echo "  -t CF_TOKEN       Cloudflare API token for DNS challenge and DNS record management"
+  echo "  -z CF_ZONE        Cloudflare zone ID for DNS record management"
+  echo "  -w WHITELIST_IPS  Comma-separated list of IPs to whitelist from rate limiting"
+  echo "  -u                Update mode (skip installation and venv creation)"
+  echo "  -h                Show this help message and exit"
 }
 
-while getopts ":d:e:t:z:uh" opt; do
+while getopts ":d:e:t:z:w:uh" opt; do
   case $opt in
     d)
       DOMAIN="$OPTARG"
@@ -41,6 +43,9 @@ while getopts ":d:e:t:z:uh" opt; do
       ;;
     z)
       CF_ZONE="$OPTARG"
+      ;;
+    w)
+      WHITELIST_IPS="$OPTARG"
       ;;
     u)
       UPDATE_MODE=1
@@ -71,6 +76,12 @@ if [[ $UPDATE_MODE -eq 0 ]]; then
   # --- install dependencies ---
   apt update
   apt install -y python3 python3-venv python3-pip git curl debian-keyring debian-archive-keyring apt-transport-https jq
+
+  # --- create ipinfo user ---
+  if ! id -u ipinfo &>/dev/null; then
+    groupadd -r ipinfo
+    useradd -r -g ipinfo -d "$APP_DIR" -s /sbin/nologin ipinfo
+  fi
 
   # --- install Go if missing or too old ---
   install_go() {
@@ -164,21 +175,22 @@ fi
 
 # --- setup app directory ---
 mkdir -p "$APP_DIR"
-chown "$USER":"$USER" "$APP_DIR"
+chown -R ipinfo:ipinfo "$APP_DIR"
 
 if [ ! -d "$APP_DIR/.git" ]; then
   git clone https://github.com/ergosteur/ipinfo.git "$APP_DIR"
+  chown -R ipinfo:ipinfo "$APP_DIR"
 else
   cd "$APP_DIR" && git pull
+  chown -R ipinfo:ipinfo "$APP_DIR"
 fi
 
 cd "$APP_DIR"
 if [[ $UPDATE_MODE -eq 0 ]]; then
-  $PYTHON_BIN -m venv venv
+  sudo -u ipinfo $PYTHON_BIN -m venv venv
 fi
-. venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
+sudo -u ipinfo venv/bin/pip install --upgrade pip
+sudo -u ipinfo venv/bin/pip install -r requirements.txt
 
 # --- systemd service ---
 tee /etc/systemd/system/ipinfo.service >/dev/null <<EOF
@@ -187,8 +199,10 @@ Description=ipinfo Flask app
 After=network.target
 
 [Service]
-User=$USER
+User=ipinfo
+Group=ipinfo
 Environment=BASE_DOMAIN=$DOMAIN
+Environment=WHITELIST_IPS=$WHITELIST_IPS
 WorkingDirectory=$APP_DIR
 ExecStart=$APP_DIR/venv/bin/gunicorn -b 127.0.0.1:5000 app:app
 Restart=always
