@@ -9,6 +9,9 @@ ipinfo is a Python/Flask "what is my IP" service that provides your IP address a
 - Displays your IP address and related info.
 - Multiple output formats: JSON, text, CSV, pfSense.
 - Themed web interface with different visual styles, including a Windows 98 theme.
+- **Security:** Runs as a non-root user in both Docker and manual deployments.
+- **Rate Limiting:** Built-in rate limiting with support for IP whitelisting.
+- **Automated Tests:** Includes a comprehensive pytest suite.
 - Easy deployment with Docker Compose.
 - Supports multiple Traefik deployment modes for HTTPS.
 - Configuration through environment variables.
@@ -26,6 +29,7 @@ This project is designed to be deployed using Docker Compose. A legacy systemd s
 
 ```bash
 cp example.env .env
+# Edit .env and set your BASE_DOMAIN
 docker compose up -d --build
 ```
 
@@ -44,20 +48,20 @@ There are three primary modes for deploying with Traefik:
 
 ## Deployment without Docker
 
-A `deploy.sh` script is provided to deploy ipinfo without Docker. This script installs necessary dependencies, sets up the Flask application with systemd, and configures Caddy as a reverse proxy for HTTPS.
+A `deploy.sh` script is provided to deploy ipinfo without Docker. This script installs necessary dependencies, sets up the Flask application with systemd (running under a dedicated `ipinfo` user), and configures Caddy as a reverse proxy for HTTPS.
 
 ### Usage
 
 - First deployment with domain and email:
 
   ```bash
-  ./deploy.sh --domain example.com --email you@example.com
+  ./deploy.sh -d example.com -e you@example.com -w "1.1.1.1,2.2.2.2"
   ```
 
 - Update an existing deployment:
 
   ```bash
-  ./deploy.sh --update
+  ./deploy.sh -u
   ```
 
 ### Cloudflare DNS Automation
@@ -67,39 +71,48 @@ The script supports optional Cloudflare DNS automation to simplify DNS setup and
 - Use the following arguments to enable Cloudflare integration:
 
   ```bash
-  ./deploy.sh --domain example.com --email you@example.com --cf-token YOUR_CLOUDFLARE_API_TOKEN --cf-zone yourdomain.com
+  ./deploy.sh -d example.com -e you@example.com -t YOUR_CF_TOKEN -z YOUR_CF_ZONE
   ```
-
-- This will automatically configure DNS records for the `ip.`, `ip4.`, and `ip6.` subdomains and set up wildcard DNS-01 challenges for TLS certificates.
-
-- If Cloudflare arguments are not provided, you must manually create DNS records pointing these subdomains to your VPS IP address.
 
 ## Configuration via `.env`
 
-The application and Traefik are configured via environment variables in a `.env` file:
+The application and infrastructure are configured via environment variables in a `.env` file:
 
 - `BASE_DOMAIN` — The base domain name for your deployment.
 - `LETSENCRYPT_EMAIL` — Email address used for Let's Encrypt registration.
+- `WHITELIST_IPS` — Comma-separated list of IPs to exempt from rate limiting.
+- `STRICT_HOST_CHECK` — Set to `false` to disable host validation (default: `true`).
 - Cloudflare tokens (optional) for DNS-01 challenge mode:
-  - `CF_API_EMAIL`
+  - `CF_DNS_API_TOKEN` (for Traefik)
   - `CF_API_KEY`
-  - or `CF_DNS_API_TOKEN`
 
 Refer to `example.env` for all configurable variables.
-
-## License
-
-Like the upstream 98.css, this project is not yet licensed.  
-This project is currently [source-available / shared source](https://en.wikipedia.org/wiki/Source-available_software), but not [open source](https://en.wikipedia.org/wiki/Open-source_software).
 
 ## Development
 
 To develop or customize the application:
 
-- Modify the Flask app source code.
-- Adjust themes or output formats as needed.
-- Use the Docker Compose setup to build and test changes quickly.
-- For local development, consider using the LAN mode for easier TLS setup.
+1.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+2.  **Run tests:**
+    ```bash
+    pytest
+    ```
+3.  **Run locally:**
+    ```bash
+    # Set your real domain or a dummy one
+    export BASE_DOMAIN="ip.example.com"
+    # Disable strict host check for easier local testing
+    export STRICT_HOST_CHECK="false"
+    python app.py
+    ```
+
+## License
+
+Like the upstream 98.css, this project is not yet licensed.  
+This project is currently [source-available / shared source](https://en.wikipedia.org/wiki/Source-available_software), but not [open source](https://en.wikipedia.org/wiki/Open-source_software).
 
 ---
 

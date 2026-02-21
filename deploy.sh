@@ -204,7 +204,21 @@ Group=ipinfo
 Environment=BASE_DOMAIN=$DOMAIN
 Environment=WHITELIST_IPS=$WHITELIST_IPS
 WorkingDirectory=$APP_DIR
-ExecStart=$APP_DIR/venv/bin/gunicorn -b 127.0.0.1:5000 app:app
+
+RuntimeDirectory=ipinfo
+RuntimeDirectoryMode=0775
+
+ExecStartPre=/bin/mkdir -p $APP_DIR/logs
+ExecStartPre=/bin/chown ipinfo:ipinfo $APP_DIR/logs
+
+UMask=002
+
+ExecStart=$APP_DIR/venv/bin/gunicorn \\
+  --workers 3 \\
+  --bind unix:/run/ipinfo/ipinfo.sock \\
+  --access-logfile $APP_DIR/logs/access.log \\
+  --error-logfile $APP_DIR/logs/error.log \\
+  app:app
 Restart=always
 
 [Install]
