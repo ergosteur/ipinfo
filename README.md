@@ -100,9 +100,7 @@ The application and infrastructure are configured via environment variables in a
 - `LETSENCRYPT_EMAIL` — Email address used for Let's Encrypt registration.
 - `WHITELIST_IPS` — Comma-separated list of IPs to exempt from rate limiting.
 - `STRICT_HOST_CHECK` — Set to `false` to disable host validation (default: `true`).
-- Cloudflare tokens (optional) for DNS-01 challenge mode:
-  - `CF_DNS_API_TOKEN` (for Traefik)
-  - `CF_API_KEY`
+- `CLOUDFLARE_API_TOKEN` — Cloudflare API token for DNS-01 challenge mode and DNS automation.
 
 Refer to `example.env` for all configurable variables.
 
