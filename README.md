@@ -33,6 +33,19 @@ cp example.env .env
 docker compose up -d --build
 ```
 
+## DNS Setup
+
+For the application to function correctly and provide separate IPv4/IPv6 endpoints, you should configure the following DNS records in your DNS provider:
+
+| Subdomain | Record Type | Points to | Description |
+| :--- | :--- | :--- | :--- |
+| `ip.<yourdomain>` | **A** | Your Server IPv4 | Main entry point (Dual-stack) |
+| `ip.<yourdomain>` | **AAAA** | Your Server IPv6 | Main entry point (Dual-stack) |
+| `ip4.<yourdomain>` | **A** | Your Server IPv4 | Forced IPv4-only endpoint |
+| `ip6.<yourdomain>` | **AAAA** | Your Server IPv6 | Forced IPv6-only endpoint |
+
+*Note: Ensure that your server has a public IPv6 address if you intend to use the IPv6/AAAA records.*
+
 ## Docker Compose Modes
 
 There are three primary modes for deploying with Traefik:
