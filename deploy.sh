@@ -8,6 +8,38 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+# --- environment checks ---
+check_env() {
+  # Check for systemd
+  if ! [[ -d /run/systemd/system ]]; then
+    echo "Error: systemd is required for this deployment script."
+    exit 1
+  fi
+
+  # Check for Debian/Ubuntu
+  if [[ ! -f /etc/debian_version ]]; then
+    echo "Error: This script is intended for Debian or Ubuntu systems only."
+    exit 1
+  fi
+
+  # Check for port conflicts (only on fresh install)
+  if [[ $UPDATE_MODE -eq 0 ]]; then
+    for port in 80 443; do
+      if command -v ss >/dev/null; then
+        if ss -tuln | grep -q ":$port "; then
+          echo "Error: Port $port is already in use. Please free it before proceeding."
+          exit 1
+        fi
+      elif command -v netstat >/dev/null; then
+        if netstat -tuln | grep -q ":$port "; then
+          echo "Error: Port $port is already in use. Please free it before proceeding."
+          exit 1
+        fi
+      fi
+    done
+  fi
+}
+
 APP_DIR="/srv/ipinfo"
 PYTHON_BIN="python3"
 DOMAIN=""
@@ -69,10 +101,27 @@ done
 
 # Set DOMAIN from environment variable if not set by argument
 if [[ -z "$DOMAIN" ]]; then
-  DOMAIN="${BASE_DOMAIN:-ip.example.com}"
+  DOMAIN="${BASE_DOMAIN:-}"
+fi
+
+# Run environment checks
+check_env
+
+if [[ -z "$DOMAIN" && $UPDATE_MODE -eq 0 ]]; then
+  echo "Error: Domain is required for initial deployment. Use -d <domain>."
+  usage
+  exit 1
 fi
 
 if [[ $UPDATE_MODE -eq 0 ]]; then
+  # --- warning before starting --- #
+  seconds=10
+  while [ $seconds -gt 0 ]; do
+    echo -ne "Pausing for $seconds seconds... \r"
+    sleep 1
+    : $((seconds--))
+  done
+  echo -e "Continuing...              " # Extra spaces clear the previous line
   # --- install dependencies ---
   apt update
   apt install -y python3 python3-venv python3-pip git curl debian-keyring debian-archive-keyring apt-transport-https jq
