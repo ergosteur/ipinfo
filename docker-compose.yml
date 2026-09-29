@@ -8,6 +8,11 @@ services:
     restart: always
     environment:
       - BASE_DOMAIN=${BASE_DOMAIN}
+      - WHITELIST_IPS=${WHITELIST_IPS:-}
+      - STRICT_HOST_CHECK=${STRICT_HOST_CHECK:-true}
+      - NO_IP_VERSION_SUBDOMAINS=${NO_IP_VERSION_SUBDOMAINS:-false}
+      - WIN98_DEFAULT=${WIN98_DEFAULT:-false}
+      - TRUSTED_PROXY_COUNT=${TRUSTED_PROXY_COUNT:-1}
     expose:
       - "8000"
     labels:
