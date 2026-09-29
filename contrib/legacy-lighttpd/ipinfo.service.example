@@ -1,0 +1,43 @@
+# LEGACY / SPECIAL CASE -- reference copy of the unit on the original lighttpd host
+# (britta.asdfghjkl.ca). Not used by deploy.sh or docker compose. See README.md in this directory.
+#
+# The one non-obvious requirement: gunicorn runs from the app's own venv as
+# "venv/bin/python -m gunicorn" (not "venv/bin/gunicorn"), because the update script builds a
+# venv in a sibling directory and renames it into place, which would leave the venv's script
+# shebangs pointing at the old path. "python -m" does not depend on them.
+#
+# Group=www-data and the 0007 umask are what let lighttpd (running as www-data) open the socket.
+
+[Unit]
+Description=IP Info Flask App
+After=network.target
+
+[Service]
+User=ipinfo
+Group=www-data
+EnvironmentFile=/etc/ipinfo/ipinfo.env
+WorkingDirectory=/srv/ipinfo
+
+# /run/ipinfo is created for us, owned by ipinfo:www-data (rwxrwx---).
+# NB: the live unit had this on one line with a trailing "# ..." comment, which systemd
+# rejects ("Failed to parse mode value, ignoring"), so the mode silently stayed at 0755. Put
+# on its own line as here, it takes effect as 0770, which the socket setup below is fine with.
+RuntimeDirectory=ipinfo
+RuntimeDirectoryMode=0770
+
+ExecStartPre=/bin/mkdir -p /srv/ipinfo/logs
+
+# Socket ends up group-writable for www-data
+UMask=007
+
+ExecStart=/srv/ipinfo/venv/bin/python -m gunicorn \
+  --workers 3 \
+  --bind unix:/run/ipinfo/ipinfo.sock \
+  --access-logfile /srv/ipinfo/logs/access.log \
+  --error-logfile /srv/ipinfo/logs/error.log \
+  app:app
+
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

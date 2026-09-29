@@ -87,6 +87,10 @@ The script supports optional Cloudflare DNS automation to simplify DNS setup and
 ./deploy.sh -d example.com -e you@example.com -t YOUR_CF_TOKEN -z YOUR_CF_ZONE
 ```
 
+### Legacy: lighttpd host
+
+The original hand-built host (lighttpd in front of gunicorn) can't be managed by `deploy.sh` or Docker. Its update tooling lives in [`contrib/legacy-lighttpd/`](contrib/legacy-lighttpd/). It is a special case, not a supported deployment method.
+
 ## Docker Deployment Modes
 
 The Docker Compose setup uses **Traefik v3** as a reverse proxy. There are three primary modes:
