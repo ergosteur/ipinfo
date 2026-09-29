@@ -11,7 +11,7 @@
     <meta name="description" content="Displays your public IP address, location, and network details, presented with a Windows 98 retro theme.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body>
+<body data-theme="98" data-base-domain="{{ BASE_DOMAIN }}" data-version-subdomains="{% if NO_IP_VERSION_SUBDOMAINS %}false{% else %}true{% endif %}">
     <div id="winipcfg-window" class="window" style="width: 360px; margin: 20px auto;">
         <div class="title-bar">
             <div class="title-bar-text"><img alt="winipcfg icon" src="{{ url_for('static', filename='img/winipcfg-icon.png') }}" height="16" width="16" /> Windows IP Configuration</div>

@@ -2,33 +2,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // -------------------------------------------------------------------------
     // Radio Button Functionality
     // -------------------------------------------------------------------------
-    function applySettings() {
-        const currentHost = window.location.hostname;
-        const hostParts = currentHost.split('.');
-        const baseHost = hostParts.slice(1).join('.');
-        const selectedRadio = document.querySelector('input[name="ipversion"]:checked');
+    const baseDomain = document.body.dataset.baseDomain;
 
-        let targetUrl = "";
-        if (selectedRadio) {
-            switch (selectedRadio.value) {
-                case "auto": targetUrl = `https://ip.${baseHost}/98`; break;
-                case "ip4": targetUrl = `https://ip4.${baseHost}/98`; break;
-                case "ip6": targetUrl = `https://ip6.${baseHost}/98`; break;
-            }
-            window.location.href = targetUrl;
-        }
+    function applySettings() {
+        const selectedRadio = document.querySelector('input[name="ipversion"]:checked');
+        if (!selectedRadio || !baseDomain) return;
+
+        // "auto" lives on ip.<domain>; "ip4"/"ip6" on their own subdomains. Stay on the current page.
+        const subdomain = selectedRadio.value === "auto" ? "ip" : selectedRadio.value;
+        window.location.href = `${window.location.protocol}//${subdomain}.${baseDomain}${window.location.pathname}`;
     }
 
-    // Pre-select the appropriate radio button based on the current URL
-    const currentUrl = window.location.href;
+    // Pre-select the appropriate radio button based on the current host
     const radio1 = document.getElementById("radio1");
     const radio2 = document.getElementById("radio2");
     const radio3 = document.getElementById("radio3");
 
     if (radio1 && radio2 && radio3) {
-        if (currentUrl.includes("ip4.")) {
+        if (window.location.hostname.startsWith("ip4.")) {
             radio2.checked = true;
-        } else if (currentUrl.includes("ip6.")) {
+        } else if (window.location.hostname.startsWith("ip6.")) {
             radio3.checked = true;
         } else {
             radio1.checked = true;
