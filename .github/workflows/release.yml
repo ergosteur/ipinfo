@@ -29,16 +29,22 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Strip build-number suffix from tag
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME%-4.10.222A}" >> "$GITHUB_OUTPUT"
+
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_NAME }}
-          # Generates tags like 'latest' and '1.2.3' automatically based on git tag
+          # Git tags look like v0.2.2-4.10.222A. The exact "-4.10.222A" suffix (a gag build
+          # number) is stripped above, and the rest gets normal semver handling:
+          #   v0.2.2-4.10.222A       -> 0.2.2, 0.2, latest
+          #   v1.0.0-rc1-4.10.222A   -> 1.0.0-rc1 (pre-releases get no 1.0 or latest)
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ !contains(github.ref, '-') }}
+            type=semver,pattern={{version}},value=${{ steps.ver.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.ver.outputs.version }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
