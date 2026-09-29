@@ -5,8 +5,9 @@ After=network.target
 [Service]
 User=ipinfo
 Group=ipinfo
-Environment=BASE_DOMAIN=yourdomain.com
-Environment=WHITELIST_IPS=
+# App settings (BASE_DOMAIN, WHITELIST_IPS, WIN98_DEFAULT, ...) go in this file, one KEY=VALUE per
+# line; see example.env for the available names. deploy.sh creates and maintains it.
+EnvironmentFile=/etc/ipinfo/ipinfo.env
 WorkingDirectory=/srv/ipinfo
 
 # Setup runtime directory for the Unix socket

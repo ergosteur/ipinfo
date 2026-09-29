@@ -46,11 +46,79 @@ DOMAIN=""
 EMAIL=""
 CF_TOKEN=""
 CF_ZONE=""
-WHITELIST_IPS=""
 UPDATE_MODE=0
 
+# App settings live in an env file loaded by the systemd unit (the equivalent of .env
+# for docker compose). It persists across `deploy.sh -u`, so an update keeps them.
+ENV_FILE="/etc/ipinfo/ipinfo.env"
+APP_SETTINGS=(BASE_DOMAIN WHITELIST_IPS STRICT_HOST_CHECK NO_IP_VERSION_SUBDOMAINS WIN98_DEFAULT TRUSTED_PROXY_COUNT)
+declare -A APP_ENV=()   # effective settings: existing env file, overridden by CLI_ENV
+declare -A CLI_ENV=()   # settings given on this command line
+
+is_app_setting() {
+  local k
+  for k in "${APP_SETTINGS[@]}"; do
+    if [[ "$k" == "$1" ]]; then return 0; fi
+  done
+  return 1
+}
+
+# Exit with an error unless $1=$2 is an acceptable value for an app setting.
+validate_setting() {
+  local key=$1 value=$2
+  if ! is_app_setting "$key"; then
+    echo "Error: unknown setting '$key'. Valid settings: ${APP_SETTINGS[*]}" >&2
+    exit 1
+  fi
+  # Values end up in a systemd EnvironmentFile: keep them to plain, unquoted characters.
+  if [[ ! "$value" =~ ^[A-Za-z0-9._:,/-]*$ ]]; then
+    echo "Error: invalid characters in value for $key: '$value'" >&2
+    exit 1
+  fi
+  case "$key" in
+    STRICT_HOST_CHECK|NO_IP_VERSION_SUBDOMAINS|WIN98_DEFAULT)
+      if [[ "$value" != "true" && "$value" != "false" ]]; then
+        echo "Error: $key must be 'true' or 'false' (got '$value')." >&2
+        exit 1
+      fi
+      ;;
+    TRUSTED_PROXY_COUNT)
+      if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+        echo "Error: TRUSTED_PROXY_COUNT must be a non-negative integer (got '$value')." >&2
+        exit 1
+      fi
+      ;;
+  esac
+}
+
+# Load previously saved settings (parsed, not sourced) into APP_ENV.
+load_env_file() {
+  [[ -f "$ENV_FILE" ]] || return 0
+  local key value
+  while IFS='=' read -r key value || [[ -n "$key" ]]; do
+    if is_app_setting "$key"; then
+      APP_ENV[$key]="$value"
+    fi
+  done < "$ENV_FILE"
+}
+
+write_env_file() {
+  local key
+  mkdir -p "$(dirname "$ENV_FILE")"
+  {
+    echo "# ipinfo app settings, read by ipinfo.service. Managed by deploy.sh: values given"
+    echo "# via -d/-w/-E override this file, and \`deploy.sh -u\` keeps what is here."
+    for key in "${APP_SETTINGS[@]}"; do
+      if [[ -n "${APP_ENV[$key]+x}" ]]; then
+        echo "$key=${APP_ENV[$key]}"
+      fi
+    done
+  } > "$ENV_FILE"
+  chmod 0644 "$ENV_FILE"
+}
+
 usage() {
-  echo "Usage: $0 [-d domain] [-e email] [-t cf_token] [-z cf_zone] [-w whitelist_ips] [-u] [-h]"
+  echo "Usage: $0 [-d domain] [-e email] [-t cf_token] [-z cf_zone] [-w whitelist_ips] [-E KEY=VALUE]... [-u] [-h]"
   echo ""
   echo "Options:"
   echo "  -d DOMAIN         Set the domain name (default: ip.example.com or BASE_DOMAIN env)"
@@ -58,11 +126,14 @@ usage() {
   echo "  -t CF_TOKEN       Cloudflare API token for DNS challenge and DNS record management"
   echo "  -z CF_ZONE        Cloudflare zone ID for DNS record management"
   echo "  -w WHITELIST_IPS  Comma-separated list of IPs to whitelist from rate limiting"
+  echo "  -E KEY=VALUE      Set an app setting (repeatable); saved to $ENV_FILE and kept on -u."
+  echo "                    Keys: ${APP_SETTINGS[*]}"
+  echo "                    e.g. -E WIN98_DEFAULT=true -E TRUSTED_PROXY_COUNT=2 (use KEY= to clear one)"
   echo "  -u                Update mode (skip installation and venv creation)"
   echo "  -h                Show this help message and exit"
 }
 
-while getopts ":d:e:t:z:w:uh" opt; do
+while getopts ":d:e:t:z:w:E:uh" opt; do
   case $opt in
     d)
       DOMAIN="$OPTARG"
@@ -77,7 +148,19 @@ while getopts ":d:e:t:z:w:uh" opt; do
       CF_ZONE="$OPTARG"
       ;;
     w)
-      WHITELIST_IPS="$OPTARG"
+      validate_setting WHITELIST_IPS "${OPTARG// /}"
+      CLI_ENV[WHITELIST_IPS]="${OPTARG// /}"
+      ;;
+    E)
+      if [[ "$OPTARG" != *=* ]]; then
+        echo "Error: -E expects KEY=VALUE (got '$OPTARG')." >&2
+        exit 1
+      fi
+      opt_key="${OPTARG%%=*}"
+      opt_value="${OPTARG#*=}"
+      opt_value="${opt_value// /}"
+      validate_setting "$opt_key" "$opt_value"
+      CLI_ENV[$opt_key]="$opt_value"
       ;;
     u)
       UPDATE_MODE=1
@@ -99,9 +182,20 @@ while getopts ":d:e:t:z:w:uh" opt; do
   esac
 done
 
-# Set DOMAIN from environment variable if not set by argument
+# Merge settings: saved env file first, then whatever was given on this command line
+load_env_file
+for key in "${!CLI_ENV[@]}"; do
+  APP_ENV[$key]="${CLI_ENV[$key]}"
+done
+
+# Set DOMAIN from -d, else the BASE_DOMAIN environment variable, else the saved setting
+# (so `deploy.sh -u` without -d keeps the existing domain)
 if [[ -z "$DOMAIN" ]]; then
-  DOMAIN="${BASE_DOMAIN:-}"
+  DOMAIN="${BASE_DOMAIN:-${CLI_ENV[BASE_DOMAIN]:-${APP_ENV[BASE_DOMAIN]:-}}}"
+fi
+if [[ -n "$DOMAIN" ]]; then
+  validate_setting BASE_DOMAIN "$DOMAIN"
+  APP_ENV[BASE_DOMAIN]="$DOMAIN"
 fi
 
 # Run environment checks
@@ -243,6 +337,7 @@ sudo -u ipinfo venv/bin/pip install --upgrade pip
 sudo -u ipinfo venv/bin/pip install -r requirements.txt
 
 # --- systemd service ---
+write_env_file
 tee /etc/systemd/system/ipinfo.service >/dev/null <<EOF
 [Unit]
 Description=ipinfo Flask app
@@ -251,8 +346,7 @@ After=network.target
 [Service]
 User=ipinfo
 Group=ipinfo
-Environment=BASE_DOMAIN=$DOMAIN
-Environment=WHITELIST_IPS=$WHITELIST_IPS
+EnvironmentFile=$ENV_FILE
 WorkingDirectory=$APP_DIR
 
 RuntimeDirectory=ipinfo
@@ -279,12 +373,29 @@ systemctl daemon-reload
 systemctl enable --now ipinfo.service
 
 # Ensure /etc/caddy directory exists before writing Caddyfile
-mkdir -p /etc/caddy
+CADDYFILE="/etc/caddy/Caddyfile"
+mkdir -p "$(dirname "$CADDYFILE")"
+
+# On update, keep what a bare `-u` can't know: carry the ACME email and the Cloudflare
+# DNS-01 setup over from the existing Caddyfile unless -e/-t were given again. (The token
+# itself lives in caddy.service's environment, which is only written on first install.)
+USE_CF_DNS=0
+if [[ -n "$CF_TOKEN" ]]; then
+  USE_CF_DNS=1
+fi
+if [[ $UPDATE_MODE -ne 0 && -f "$CADDYFILE" ]]; then
+  if [[ -z "$EMAIL" ]]; then
+    EMAIL="$(awk '$1 == "email" { print $2; exit }' "$CADDYFILE")"
+  fi
+  if grep -q 'dns cloudflare' "$CADDYFILE"; then
+    USE_CF_DNS=1
+  fi
+fi
 
 # --- caddy config ---
-if [[ -n "$CF_TOKEN" ]]; then
+if [[ $USE_CF_DNS -eq 1 ]]; then
   # Configure Caddy with Cloudflare DNS challenge and wildcard domain
-  tee /etc/caddy/Caddyfile >/dev/null <<EOF
+  tee "$CADDYFILE" >/dev/null <<EOF
 {
     email $EMAIL
 }
@@ -303,7 +414,7 @@ EOF
 else
   # Normal HTTPS with wildcard domain
   if [[ -n "$EMAIL" ]]; then
-    tee /etc/caddy/Caddyfile >/dev/null <<EOF
+    tee "$CADDYFILE" >/dev/null <<EOF
 {
     email $EMAIL
 }
@@ -317,7 +428,7 @@ http://*.${DOMAIN} {
 }
 EOF
   else
-    tee /etc/caddy/Caddyfile >/dev/null <<EOF
+    tee "$CADDYFILE" >/dev/null <<EOF
 *.${DOMAIN} {
     reverse_proxy unix//run/ipinfo/ipinfo.sock
 }

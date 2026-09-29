@@ -72,9 +72,14 @@ The `deploy.sh` script is provided for users who prefer a traditional systemd + 
 # First deployment with domain and email
 ./deploy.sh -d example.com -e you@example.com -w "1.1.1.1,2.2.2.2"
 
-# Update an existing deployment
+# Set any app setting (same names as the .env variables below); repeatable
+./deploy.sh -d example.com -E WIN98_DEFAULT=true -E TRUSTED_PROXY_COUNT=2
+
+# Update an existing deployment (keeps the saved domain, settings, and the Caddy email / Cloudflare DNS-01 setup)
 ./deploy.sh -u
 ```
+
+Settings are saved to `/etc/ipinfo/ipinfo.env`, which `ipinfo.service` loads (`EnvironmentFile=`). That is the systemd counterpart of the Docker `.env`, and it holds the same variable names. Values passed with `-d`, `-w` or `-E` override the file, everything else in it is kept across `./deploy.sh -u`, and `-E KEY=` clears a setting. You can also edit the file directly and run `sudo systemctl restart ipinfo`.
 
 ### Cloudflare DNS Automation
 The script supports optional Cloudflare DNS automation to simplify DNS setup and enable wildcard DNS-01 challenges in Caddy.
@@ -103,12 +108,12 @@ The application and infrastructure are configured via environment variables in a
 - `LETSENCRYPT_EMAIL` — Email address used for Let's Encrypt registration.
 - `WHITELIST_IPS` — Comma-separated list of IPs to exempt from rate limiting.
 - `STRICT_HOST_CHECK` — Set to `false` to disable host validation (default: `true`).
+- `TRUSTED_PROXY_COUNT` — Number of reverse proxies in front of the app that append to `X-Forwarded-For` (default: `1`). The client IP is taken that many entries from the right, so forged entries supplied by the client are ignored. Use `2` for Cloudflare in front of Traefik/Caddy, or `0` to ignore `X-Forwarded-For` and use the socket address. Make sure the app is only reachable through the proxy.
 - `NO_IP_VERSION_SUBDOMAINS` — Set to `true` to hide the IPv4/IPv6 version switcher UI (default: `false`).
 - `WIN98_DEFAULT` — Set to `true` to make the Windows 98 theme the default page at `/` (default: `false`).
 - `CLOUDFLARE_API_TOKEN` — Cloudflare API token for DNS-01 challenge mode and DNS automation.
 
 Refer to `example.env` for all configurable variables.
-- `TRUSTED_PROXY_COUNT` — Number of reverse proxies in front of the app that append to `X-Forwarded-For` (default: `1`). The client IP is taken that many entries from the right, so forged entries supplied by the client are ignored. Use `2` for Cloudflare in front of Traefik/Caddy, or `0` to ignore `X-Forwarded-For` and use the socket address. Make sure the app is only reachable through the proxy.
 
 ## Development
 
