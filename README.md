@@ -108,6 +108,7 @@ The application and infrastructure are configured via environment variables in a
 - `CLOUDFLARE_API_TOKEN` — Cloudflare API token for DNS-01 challenge mode and DNS automation.
 
 Refer to `example.env` for all configurable variables.
+- `TRUSTED_PROXY_COUNT` — Number of reverse proxies in front of the app that append to `X-Forwarded-For` (default: `1`). The client IP is taken that many entries from the right, so forged entries supplied by the client are ignored. Use `2` for Cloudflare in front of Traefik/Caddy, or `0` to ignore `X-Forwarded-For` and use the socket address. Make sure the app is only reachable through the proxy.
 
 ## Development
 

@@ -1,4 +1,7 @@
 import os
+import ipaddress
+import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from flask import Flask, request, jsonify, render_template, make_response, send_from_directory, Response, abort
 from flask_cors import CORS
 from flask_limiter import Limiter
@@ -10,6 +13,12 @@ from datetime import datetime
 # Domain configuration
 BASE_DOMAIN = os.environ.get("BASE_DOMAIN", "1qaz.ca")
 
+# Number of reverse proxies in front of the app that each append to X-Forwarded-For
+# (1 for Traefik or Caddy alone, 2 for Cloudflare -> Traefik). Only the entry that
+# the outermost trusted proxy appended is believed; anything to its left is
+# client-supplied and can be forged. Set to 0 to ignore X-Forwarded-For entirely.
+TRUSTED_PROXY_COUNT = max(0, int(os.environ.get("TRUSTED_PROXY_COUNT", "1")))
+
 # CORS origins for subdomains
 CORS_ORIGINS = [
     f"https://ip.{BASE_DOMAIN}",
@@ -19,12 +28,28 @@ CORS_ORIGINS = [
 
 app = Flask(__name__)
 
+def get_client_ip():
+    """Return the client IP as seen by the outermost trusted proxy.
+
+    X-Forwarded-For is "client-supplied..., real client, proxy1, ..." where each
+    trusted proxy appended the address it received the request from. Counting
+    from the right by TRUSTED_PROXY_COUNT skips anything a client made up.
+    """
+    xff = request.headers.get('X-Forwarded-For')
+    if xff and TRUSTED_PROXY_COUNT:
+        ips = [ip.strip() for ip in xff.split(',') if ip.strip()]
+        if ips:
+            candidate = ips[-min(TRUSTED_PROXY_COUNT, len(ips))]
+            try:
+                addr = ipaddress.ip_address(candidate)
+                return str(addr.ipv4_mapped or addr) if addr.version == 6 else str(addr)
+            except ValueError:
+                pass
+    return request.remote_addr
+
 # Rate Limiting
 def get_client_ip_for_limiter():
-    """Get client IP, trusting X-Forwarded-For because we are behind Traefik."""
-    if request.headers.get('X-Forwarded-For'):
-        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
-    return request.remote_addr
+    return get_client_ip()
 
 limiter = Limiter(
     key_func=get_client_ip_for_limiter,
@@ -74,83 +99,52 @@ def template_context(info):
         "WIN98_DEFAULT": os.environ.get("WIN98_DEFAULT", "false").lower() == "true",
     }
 
-def is_public_ip(ip):
-    """Check if an IP address is a public one (not private or loopback)."""
-    try:
-        import ipaddress
-        addr = ipaddress.ip_address(ip)
-        return not (addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_multicast)
-    except ValueError:
-        return False
+# Reverse DNS: getfqdn() has no timeout and blocks the whole (sync) worker, so run it
+# in a small thread pool with a deadline and cache results, failures included.
+RDNS_TIMEOUT = 2.0
+RDNS_CACHE_TTL = 300
+RDNS_CACHE_MAX = 1024
+_rdns_pool = ThreadPoolExecutor(max_workers=8, thread_name_prefix="rdns")
+_rdns_cache = {}
 
-def get_ip_info(request):
+def lookup_hostname(ip):
+    """Reverse-resolve ip, giving up after RDNS_TIMEOUT seconds."""
+    now = time.monotonic()
+    cached = _rdns_cache.get(ip)
+    if cached and cached[0] > now:
+        return cached[1]
+    try:
+        hostname = _rdns_pool.submit(socket.getfqdn, ip).result(timeout=RDNS_TIMEOUT)
+    except (FutureTimeout, OSError):
+        hostname = "Hostname not found"
+    if len(_rdns_cache) >= RDNS_CACHE_MAX:
+        _rdns_cache.clear()
+    _rdns_cache[ip] = (now + RDNS_CACHE_TTL, hostname)
+    return hostname
+
+def get_ip_info(request, resolve_hostnames=True):
     ipv4 = None
     ipv6 = None
 
     x_forwarded_for = request.headers.get('X-Forwarded-For')
-    if x_forwarded_for:
-        ips = [ip.strip() for ip in x_forwarded_for.split(',')]
-        
-        # 1. Try to find the first PUBLIC IPv4 and IPv6
-        for ip in ips:
-            if not ipv4:
-                try:
-                    socket.inet_pton(socket.AF_INET, ip)
-                    if is_public_ip(ip):
-                        ipv4 = ip
-                except socket.error:
-                    pass
-            if not ipv6:
-                try:
-                    socket.inet_pton(socket.AF_INET6, ip)
-                    if is_public_ip(ip):
-                        ipv6 = ip
-                except socket.error:
-                    pass
-        
-        # 2. Fallback: If no public IP found, take the very first one in the list
-        if not ipv4:
-            for ip in ips:
-                try:
-                    socket.inet_pton(socket.AF_INET, ip)
-                    ipv4 = ip
-                    break
-                except socket.error:
-                    pass
-        if not ipv6:
-            for ip in ips:
-                try:
-                    socket.inet_pton(socket.AF_INET6, ip)
-                    ipv6 = ip
-                    break
-                except socket.error:
-                    pass
-    else:
-        # No X-Forwarded-For, use remote_addr
-        try:
-            socket.inet_pton(socket.AF_INET, request.remote_addr)
-            ipv4 = request.remote_addr
-        except socket.error:
-            try:
-                socket.inet_pton(socket.AF_INET6, request.remote_addr)
-                ipv6 = request.remote_addr
-            except socket.error:
-                pass
+    client_ip = get_client_ip()
+    try:
+        version = ipaddress.ip_address(client_ip).version
+    except ValueError:
+        version = None
+    if version == 4:
+        ipv4 = client_ip
+    elif version == 6:
+        ipv6 = client_ip
 
     hostname_ipv4 = "None"
     hostname_ipv6 = "None"
 
-    if ipv4:
-        try:
-            hostname_ipv4 = socket.getfqdn(ipv4)
-        except socket.gaierror:
-            hostname_ipv4 = "Hostname not found"
-
-    if ipv6:
-        try:
-            hostname_ipv6 = socket.getfqdn(ipv6)
-        except socket.gaierror:
-            hostname_ipv6 = "Hostname not found"
+    if resolve_hostnames:
+        if ipv4:
+            hostname_ipv4 = lookup_hostname(ipv4)
+        if ipv6:
+            hostname_ipv6 = lookup_hostname(ipv6)
 
     user_agent = request.headers.get('User-Agent')
     language = request.headers.get('Accept-Language')
@@ -205,7 +199,7 @@ def text_info():
 
 @app.route('/iponly')
 def iponly_info():
-    info = get_ip_info(request)
+    info = get_ip_info(request, resolve_hostnames=False)
     text = info.get('IPv4') or info.get('IPv6')
     return make_response(text, {'Content-Type': 'text/plain'})
 
@@ -225,7 +219,7 @@ def csv_info():
 # pfSense Dynamic DNS CheckIP
 @app.route('/pfsense')
 def pfsense_ip_check():
-    info = get_ip_info(request)
+    info = get_ip_info(request, resolve_hostnames=False)
     client_ip = info.get('IPv4') or info.get('IPv6')  # Get IPv4 or IPv6
 
     if client_ip:
