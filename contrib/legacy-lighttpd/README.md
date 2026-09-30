@@ -50,8 +50,9 @@ ipinfo-update --force TAG      # rebuild and swap even if already on TAG
 
 An update builds the release in `/srv/ipinfo.new` (venv, requirements minus pytest, in-process
 smoke test as the service user) **before** touching the running service. Only then does it stop
-the service, rename directories, carry `logs/` across, start it, and check `/`, `/98`, `/iponly`
-and `/json` through the gunicorn socket. If any check fails it puts the previous tree back
+the service, rename directories, carry `logs/` across, start it, and check `/`, `/98`, `/json` and
+`/iponly` through the gunicorn socket (sending `X-Forwarded-For` the way lighttpd does; over a
+Unix socket the app otherwise has no client IP and `/iponly` returns 500). If any check fails it puts the previous tree back
 automatically. Downtime is a stop, two renames and a start.
 
 Kept alongside `/srv/ipinfo` (newest two of each are retained, older ones pruned after a

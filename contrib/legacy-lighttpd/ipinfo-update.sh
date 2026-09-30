@@ -115,8 +115,17 @@ OLD="$APP_DIR.old-$TS"
 # Talk to gunicorn directly over its socket, exactly as lighttpd does.
 verify_live() {
   local i hdr body code path
-  hdr="203.0.113.9"
-  for i in $(seq 2 "$PROXY_COUNT"); do hdr="$hdr, 198.51.100.$i"; done
+  local -a xff=() paths=(/ /98 /json)
+
+  # Over a unix socket there is no peer address, so without X-Forwarded-For the app has no client IP
+  # at all (and /iponly answers 500). Send it exactly as lighttpd does. TRUSTED_PROXY_COUNT=0 means
+  # the app ignores the header and can never know the client here, so /iponly is skipped then.
+  if [ "$PROXY_COUNT" -gt 0 ]; then
+    hdr="203.0.113.9"
+    for i in $(seq 2 "$PROXY_COUNT"); do hdr="$hdr, 198.51.100.$i"; done
+    xff=(-H "X-Forwarded-For: $hdr")
+    paths+=(/iponly)
+  fi
 
   for i in $(seq 1 20); do
     $SUDO systemctl is-active --quiet "$SERVICE" && [ -S "$SOCK" ] && break
@@ -124,21 +133,19 @@ verify_live() {
   done
   $SUDO systemctl is-active --quiet "$SERVICE" || { echo "verify: service is not active"; return 1; }
 
-  for path in / /98 /iponly; do
+  for path in "${paths[@]}"; do
     code="$($SUDO curl -s -o /dev/null -w '%{http_code}' --max-time 10 --unix-socket "$SOCK" \
-            -H "Host: ip.$BASE_DOMAIN" "http://localhost$path")"
+            -H "Host: ip.$BASE_DOMAIN" "${xff[@]}" "http://localhost$path")"
     [ "$code" = 200 ] || { echo "verify: GET $path returned $code"; return 1; }
   done
 
+  body="$($SUDO curl -s --max-time 10 --unix-socket "$SOCK" -H "Host: ip.$BASE_DOMAIN" "${xff[@]}" http://localhost/json)"
   if [ "$PROXY_COUNT" -gt 0 ]; then
-    body="$($SUDO curl -s --max-time 10 --unix-socket "$SOCK" -H "Host: ip.$BASE_DOMAIN" \
-            -H "X-Forwarded-For: $hdr" http://localhost/json)"
     echo "$body" | grep -q '"IPv4": *"203.0.113.9"' || { echo "verify: /json did not report the forwarded client IP: $body"; return 1; }
   else
-    body="$($SUDO curl -s --max-time 10 --unix-socket "$SOCK" -H "Host: ip.$BASE_DOMAIN" http://localhost/json)"
     echo "$body" | grep -q '"IPv4"' || { echo "verify: /json is not the expected document: $body"; return 1; }
   fi
-  echo "verify: OK (active; /, /98, /iponly = 200; /json correct via $SOCK)"
+  echo "verify: OK (active; ${paths[*]} = 200; /json correct via $SOCK)"
 }
 
 # Move the tree at $2 into place, retiring the live tree to $1; carries logs/ along.
